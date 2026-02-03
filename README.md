@@ -28,6 +28,14 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
+> [!TIP]
+>
+> Like you should use it this way so your terminal is full of less junk:
+>
+> ```sh
+> $ sh <(curl -Ssf https://yoink.sh) mxcl/brewx
+> ```
+
 ### `yoink x`
 
 Why install anything? Just run things.
