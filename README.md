@@ -64,7 +64,7 @@ yoink not found
 Go wild.
 
 ```sh
-$ sh <(curl https://yoink.sh) mxcl/brewx cowsay hi yoinksters
+$ sh <(curl https://yoink.sh) mxcl/brewx npx cowsay hi yoinksters
  _______________
 < hi yoinksters >
 ---------------
