@@ -1,18 +1,21 @@
 # Yoink
 
-Package manager (ish) for binary downloads from GitHub releases.
+- Package manager(ish) for binary downloads from GitHub releases
+- Package executor for one-off runs of binaries from GitHub releases
 
 ## Usage
 
 ```sh
-$ curl https://yoink.sh | sh -s -- mxcl/brewx
+$ sh <(curl https://yoink.sh) mxcl/brewx
 # ^^ -s ensures sh reads from stdin even when args are present
 # ^^ installs the latest brewx from its GitHub releases
 # DOES NOT INSTALL YOINK
 
-$ curl https://yoink.sh | sh -s -- mxcl/yoink
-# ^^ installs yoink itself
-# NOTE you don’t need to install yoink, just use the curl command above
+$ which brewx
+~/.local/bin/brewx
+
+$ sh <(curl https://yoink.sh) mxcl/yoink
+# ^^ installs yoink itself (if you like)
 
 $ yoink ls
 mxcl/brewx@0.4.2
@@ -25,19 +28,24 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
-### `yoinkx`
+### `yoink x`
 
 Why install anything? Just run things.
 
 ```sh
-$ curl https://yoink.sh/x | sh -s -- denoland/deno run 'console.log("hi")'
+$ sh <(curl https://yoink.sh/x) denoland/deno run 'console.log("hi")'
 hi
 
-$ curl https://yoink.sh | sh -s -- mxcl/yoink
+$ which deno
+deno not found
+
+$ sh <(curl https://yoink.sh) mxcl/yoink
 $ yoink x denoland/deno run 'console.log("hi")'
 hi
-```
 
+$ which deno
+deno not found
+```
 
 ## Configuring This Thing
 
@@ -51,3 +59,7 @@ I tried all the others and thought they *sucked*.
 
 Also we provide a curl one-liner so you don’t even need to install yoink to
 use it. Which is especially nice for READMEs.
+
+## Something Didn’t Work
+
+Report the bug! We’re literally pre 1.0 and open source here!

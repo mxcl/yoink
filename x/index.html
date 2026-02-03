@@ -9,4 +9,4 @@ https://github.com/mxcl/yoink <- GO HERE!!!
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 curl -LSsf "https://github.com/mxcl/yoink/releases/download/v0.1.0/yoink-0.1.0-$(uname -s)-$(uname -m).tar.gz" | tar -xz -C "$tmp"
-"$tmp/yoink" "$@"
+"$tmp/yoink" x "$@"
