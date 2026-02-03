@@ -1,10 +1,12 @@
 use anyhow::{bail, Context, Result};
+use fs2::FileExt;
 use reqwest::blocking::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
-use std::io;
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use walkdir::WalkDir;
@@ -18,6 +20,7 @@ struct Asset {
 #[derive(Deserialize)]
 struct Release {
     assets: Vec<Asset>,
+    tag_name: Option<String>,
 }
 
 pub fn install(repo: &str) -> Result<PathBuf> {
@@ -25,6 +28,11 @@ pub fn install(repo: &str) -> Result<PathBuf> {
     let client = github_client()?;
     let release = fetch_latest_release(&client, &owner, &name)?;
     let asset = pick_asset(&release.assets)?;
+    let version = release
+        .tag_name
+        .as_deref()
+        .unwrap_or("unknown")
+        .to_string();
 
     let temp_dir = tempfile::tempdir().context("create temp dir")?;
     let download_path = temp_dir.path().join(&asset.name);
@@ -53,12 +61,31 @@ pub fn install(repo: &str) -> Result<PathBuf> {
     fs::copy(&payload_path, &dest)
         .with_context(|| format!("copy to {}", dest.display()))?;
     set_executable(&dest)?;
+    record_install(&format!("{owner}/{name}"), &version, &dest)?;
 
     Ok(dest)
 }
 
 pub fn is_repo_shape(input: &str) -> bool {
     parse_repo(input).is_ok()
+}
+
+#[derive(Debug)]
+pub struct InstallSummary {
+    pub repo: String,
+    pub version: String,
+}
+
+pub fn list_installs() -> Result<Vec<InstallSummary>> {
+    let state = load_state()?;
+    let mut installs = Vec::new();
+    for (repo, entry) in state.installs {
+        installs.push(InstallSummary {
+            repo,
+            version: display_version(&entry.version).to_string(),
+        });
+    }
+    Ok(installs)
 }
 
 fn parse_repo(repo: &str) -> Result<(String, String)> {
@@ -429,4 +456,106 @@ fn set_executable(path: &Path) -> Result<()> {
             .with_context(|| format!("chmod {}", path.display()))?;
     }
     Ok(())
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct InstallState {
+    #[serde(default)]
+    installs: BTreeMap<String, InstallEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InstallEntry {
+    version: String,
+    bin: PathBuf,
+}
+
+fn record_install(repo: &str, version: &str, bin: &Path) -> Result<()> {
+    let state_path = state_path()?;
+    if let Some(parent) = state_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create state dir {}", parent.display()))?;
+    }
+
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&state_path)
+        .with_context(|| format!("open state file {}", state_path.display()))?;
+    file.lock_exclusive()
+        .with_context(|| format!("lock state file {}", state_path.display()))?;
+
+    let mut state = read_state_locked(&mut file)?;
+    state.installs.insert(
+        repo.to_string(),
+        InstallEntry {
+            version: version.to_string(),
+            bin: bin.to_path_buf(),
+        },
+    );
+    write_state_locked(&mut file, &state)?;
+    file.unlock()
+        .with_context(|| format!("unlock state file {}", state_path.display()))?;
+    Ok(())
+}
+
+fn load_state() -> Result<InstallState> {
+    let state_path = state_path()?;
+    if !state_path.exists() {
+        return Ok(InstallState::default());
+    }
+
+    let mut file = fs::File::open(&state_path)
+        .with_context(|| format!("open state file {}", state_path.display()))?;
+    file.lock_shared()
+        .with_context(|| format!("lock state file {}", state_path.display()))?;
+    let state = read_state_locked(&mut file)?;
+    file.unlock()
+        .with_context(|| format!("unlock state file {}", state_path.display()))?;
+    Ok(state)
+}
+
+fn read_state_locked(file: &mut fs::File) -> Result<InstallState> {
+    file.seek(SeekFrom::Start(0))
+        .context("seek state file")?;
+    let mut buf = String::new();
+    file.read_to_string(&mut buf).context("read state file")?;
+    let state = if buf.trim().is_empty() {
+        InstallState::default()
+    } else {
+        serde_json::from_str(&buf).context("parse state json")?
+    };
+    Ok(state)
+}
+
+fn write_state_locked(file: &mut fs::File, state: &InstallState) -> Result<()> {
+    file.set_len(0).context("truncate state file")?;
+    file.seek(SeekFrom::Start(0))
+        .context("seek state file")?;
+    serde_json::to_writer_pretty(file, state).context("write state json")?;
+    file.write_all(b"\n").context("write state newline")?;
+    file.sync_all().context("sync state file")?;
+    Ok(())
+}
+
+fn state_path() -> Result<PathBuf> {
+    let base = dirs_next::data_dir()
+        .or_else(|| dirs_next::home_dir().map(|dir| dir.join(".local").join("share")))
+        .context("determine data dir")?;
+    Ok(base.join("yoink").join("installed.json"))
+}
+
+fn display_version(version: &str) -> &str {
+    if let Some(stripped) = version.strip_prefix('v') {
+        if stripped
+            .chars()
+            .next()
+            .map(|ch| ch.is_ascii_digit())
+            .unwrap_or(false)
+        {
+            return stripped;
+        }
+    }
+    version
 }

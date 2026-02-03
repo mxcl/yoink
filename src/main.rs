@@ -13,7 +13,24 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    if yoink::is_repo_shape(&first) {
+    if first == "ls" {
+        if args.next().is_some() {
+            eprintln!("yoink: extra arguments after ls are not supported yet");
+            return ExitCode::from(2);
+        }
+        match yoink::list_installs() {
+            Ok(installs) => {
+                for install in installs {
+                    println!("{}@{}", install.repo, install.version);
+                }
+                ExitCode::SUCCESS
+            }
+            Err(err) => {
+                eprintln!("yoink: {err:?}");
+                ExitCode::from(1)
+            }
+        }
+    } else if yoink::is_repo_shape(&first) {
         if args.next().is_some() {
             eprintln!("yoink: extra arguments after repo are not supported yet");
             return ExitCode::from(2);
@@ -36,5 +53,7 @@ fn main() -> ExitCode {
 }
 
 fn print_usage() {
-    eprintln!("usage: yoink <owner/repo>");
+    eprintln!("usage:");
+    eprintln!("  yoink <owner/repo>");
+    eprintln!("  yoink ls");
 }

@@ -16,6 +16,7 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 walkdir = "2"
 bzip2 = "0.4"
 dirs-next = "2"
+fs2 = "0.4"
 
 [dev-dependencies]
 serial_test = "3"
