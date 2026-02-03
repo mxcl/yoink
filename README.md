@@ -1,10 +1,5 @@
 # Yoink
 
-- Package manager(ish) for binary downloads from GitHub releases
-- Package executor for one-off runs of binaries from GitHub releases
-
-## Usage
-
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
 # ^^ -s ensures sh reads from stdin even when args are present
