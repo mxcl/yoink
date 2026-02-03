@@ -2,12 +2,13 @@
 
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
-# ^^ -s ensures sh reads from stdin even when args are present
 # ^^ installs the latest brewx from its GitHub releases
-# DOES NOT INSTALL YOINK
 
 $ which brewx
 ~/.local/bin/brewx
+
+$ which yoink
+yoink not found  # YOINK NOT YOINKED
 
 $ brewx cowsay we need moar yoink
  ____________________
@@ -20,7 +21,7 @@ $ brewx cowsay we need moar yoink
                 ||     ||
 
 $ sh <(curl https://yoink.sh) mxcl/yoink
-# ^^ installs yoink itself (if you like)
+# ^^ yoinking yoink with yoink itself like a boss
 
 $ yoink ls
 mxcl/brewx@0.4.2
