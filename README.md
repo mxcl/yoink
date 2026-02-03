@@ -53,21 +53,29 @@ hi
 
 $ which deno
 deno not found
+
+$ which yoink
+~/.local/bin/yoink
+
+$ yoink rm yoink
+$ which yoink
+yoink not found
 ```
 
 Go wild.
 
 ```sh
 $ sh <(curl https://yoink.sh) x mxcl/brewx cowsay hi yoinksters
- ____
-< hi >
- ----
+ _______________
+< hi yoinksters >
+ ---------------
         \   ^__^
          \  (oo)\_______
             (__)\       )\/\
                 ||----w |
                 ||     ||
 ```
+
 ## Configuring This Thing
 
 `YOINKDIR` - where to install things, defaults to `~/.local/bin`, if you set
@@ -76,10 +84,11 @@ it to somewhere that requires `sudo` it will invoke `sudo` for the minimal
 
 ## Why This and Not All the Other Tools That Seem Identical?
 
-I tried all the others and thought they *sucked*.
-
-Also we provide a curl one-liner so you don’t even need to install yoink to
-use it. Which is especially nice for READMEs.
+- I tried all the others and they *sucked*.
+- We provide a curl one-liner so you don’t even need to install yoink to
+  use it. Which is especially nice for READMEs.
+- We provide `yoink x` so you don’t need to install anything to use anything
+  even.
 
 ## Something Didn’t Work
 
