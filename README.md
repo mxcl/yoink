@@ -9,7 +9,7 @@ $ which brewx
 ~/.local/bin/brewx
 
 $ which yoink
-yoink not found  # YOINK NOT YOINKED
+yoink not found  # `yoink` NOT YOINKED
 
 $ brewx cowsay we need moar yoink
  ____________________
@@ -35,7 +35,7 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
-### `yoink <owner/repo> [args...]`
+## `yoinkx`
 
 Why install anything? Just run things.
 
