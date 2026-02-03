@@ -39,14 +39,14 @@ $ yoink rm mxcl/brewx
 Why install anything? Just run things.
 
 ```sh
-$ sh <(curl https://yoink.sh) x denoland/deno run 'console.log("hi")'
+$ sh <(curl https://yoink.sh) x denoland/deno eval 'console.log("hi")'
 hi
 
 $ which deno
 deno not found
 
 $ sh <(curl https://yoink.sh) mxcl/yoink
-$ yoink x denoland/deno run 'console.log("hi")'
+$ yoink x denoland/deno eval 'console.log("hi")'
 hi
 
 $ which deno
