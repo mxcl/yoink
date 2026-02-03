@@ -2,6 +2,7 @@
 
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
+installed: ~/.local/bin/brewx
 # ^^ installs the latest brewx from its GitHub releases
 
 $ which brewx
