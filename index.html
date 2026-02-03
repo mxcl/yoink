@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# hi! visit https://github.com/mxcl/yoink for more info
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl "https://github.com/mxcl/yoink/releases/v0.1.0/download/yoink-0.1.0-$(uname -s)-$(uname -m).tar.gz" | tar -xz -C "$tmp"
+"$tmp/yoink" "$@"
