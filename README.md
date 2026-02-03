@@ -5,11 +5,12 @@ Package manager (ish) for binary downloads from GitHub releases.
 ## Usage
 
 ```sh
-$ curl https://yoink.sh | sh -- mxcl/brewx
+$ curl https://yoink.sh | sh -s -- mxcl/brewx
+# ^^ -s ensures sh reads from stdin even when args are present
 # ^^ installs the latest brewx from its GitHub releases
 # DOES NOT INSTALL YOINK
 
-$ curl https://yoink.sh | sh -- mxcl/yoink
+$ curl https://yoink.sh | sh -s -- mxcl/yoink
 # ^^ installs yoink itself
 # NOTE you don’t need to install yoink, just use the curl command above
 
@@ -29,10 +30,10 @@ $ yoink rm mxcl/brewx
 Why install anything? Just run things.
 
 ```sh
-$ curl https://yoink.sh/x | sh -- denoland/deno run 'console.log("hi")'
+$ curl https://yoink.sh/x | sh -s -- denoland/deno run 'console.log("hi")'
 hi
 
-$ curl https://yoink.sh | sh -- mxcl/yoink
+$ curl https://yoink.sh | sh -s -- mxcl/yoink
 $ yoink x denoland/deno run 'console.log("hi")'
 hi
 ```
