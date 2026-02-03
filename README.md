@@ -27,13 +27,12 @@ $ yoink rm mxcl/brewx
 ## Configuring This Thing
 
 `YOINKDIR` - where to install things, defaults to `~/.local/bin`, if you set
-it to somewhere that requires `sudo` it will abort unless you pass `--sudo` or
-set `YOINK_SUDO=moisturized` in which case it will invoke `sudo` for the
-tiniest briefest atomic `mv` operation duration possible.
+it to somewhere that requires `sudo` it will invoke `sudo` for the minimal
+atomic `mv` command required to move the binary into place.
 
 ## Why This and Not All the Other Tools That Seem Identical?
 
-I tried all the others and they *sucked*.
+I tried all the others and thought they *sucked*.
 
 Also we provide a curl one-liner so you don’t even need to install yoink to
 use it. Which is especially nice for READMEs.

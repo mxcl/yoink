@@ -8,6 +8,8 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::process::Command;
 use tempfile::TempDir;
 use walkdir::WalkDir;
 
@@ -63,9 +65,13 @@ fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
         .with_context(|| format!("create install dir {}", install_dir.display()))?;
 
     let dest = install_dir.join(binary_name(&name));
-    fs::copy(&payload_path, &dest)
-        .with_context(|| format!("copy to {}", dest.display()))?;
-    set_executable(&dest)?;
+    if let Err(err) = install_binary(&payload_path, &dest) {
+        if is_permission_denied(&err) {
+            install_with_sudo(&payload_path, &dest)?;
+        } else {
+            return Err(err);
+        }
+    }
     record_install(&format!("{owner}/{name}"), &version, &dest)?;
 
     Ok((dest, version))
@@ -458,6 +464,9 @@ fn find_binary(root: &Path, repo_name: &str) -> Result<PathBuf> {
 }
 
 fn default_install_dir() -> Result<PathBuf> {
+    if let Ok(dir) = env::var("YOINKDIR") {
+        return Ok(PathBuf::from(dir));
+    }
     if let Ok(dir) = env::var("YOINK_BIN_DIR") {
         return Ok(PathBuf::from(dir));
     }
@@ -489,6 +498,53 @@ fn set_executable(path: &Path) -> Result<()> {
             .with_context(|| format!("chmod {}", path.display()))?;
     }
     Ok(())
+}
+
+fn install_binary(payload_path: &Path, dest: &Path) -> Result<()> {
+    fs::copy(payload_path, dest)
+        .with_context(|| format!("copy to {}", dest.display()))?;
+    set_executable(dest)?;
+    Ok(())
+}
+
+fn install_with_sudo(payload_path: &Path, dest: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        set_executable(payload_path)?;
+        let status = Command::new("sudo")
+            .arg("mv")
+            .arg("--")
+            .arg(payload_path)
+            .arg(dest)
+            .status()
+            .with_context(|| {
+                format!(
+                    "run sudo mv {} {}",
+                    payload_path.display(),
+                    dest.display()
+                )
+            })?;
+        if !status.success() {
+            bail!("sudo mv failed with status {}", status);
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = payload_path;
+        let _ = dest;
+        bail!("install location requires permissions not supported on this platform");
+    }
+}
+
+fn is_permission_denied(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        cause
+            .downcast_ref::<io::Error>()
+            .map(|io_err| io_err.kind() == io::ErrorKind::PermissionDenied)
+            .unwrap_or(false)
+    })
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
