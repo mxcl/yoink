@@ -14,6 +14,16 @@ $ sh <(curl https://yoink.sh) mxcl/brewx
 $ which brewx
 ~/.local/bin/brewx
 
+$ brewx cowsay we need moar yoink
+ ____________________
+< we need moar yoink >
+ --------------------
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+
 $ sh <(curl https://yoink.sh) mxcl/yoink
 # ^^ installs yoink itself (if you like)
 
@@ -22,7 +32,7 @@ mxcl/brewx@0.4.2
 mxcl/yoink@0.1.0
 
 $ yoink upgrade
-# ^^ upgrades everything installed
+# ^^ upgrades everything installed (if possible)
 
 $ yoink rm mxcl/brewx
 # ^^ removes brewx
