@@ -693,7 +693,7 @@ fn write_state_locked(file: &mut fs::File, state: &InstallState) -> Result<()> {
     file.set_len(0).context("truncate state file")?;
     file.seek(SeekFrom::Start(0))
         .context("seek state file")?;
-    serde_json::to_writer_pretty(file, state).context("write state json")?;
+    serde_json::to_writer_pretty(&mut *file, state).context("write state json")?;
     file.write_all(b"\n").context("write state newline")?;
     file.sync_all().context("sync state file")?;
     Ok(())
