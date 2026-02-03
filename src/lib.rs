@@ -61,8 +61,7 @@ fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
     };
 
     let install_dir = default_install_dir()?;
-    fs::create_dir_all(&install_dir)
-        .with_context(|| format!("create install dir {}", install_dir.display()))?;
+    ensure_install_dir(&install_dir)?;
 
     let dest = install_dir.join(binary_name(&name));
     if let Err(err) = install_binary(&payload_path, &dest) {
@@ -545,6 +544,42 @@ fn is_permission_denied(err: &anyhow::Error) -> bool {
             .map(|io_err| io_err.kind() == io::ErrorKind::PermissionDenied)
             .unwrap_or(false)
     })
+}
+
+fn ensure_install_dir(install_dir: &Path) -> Result<()> {
+    if let Err(err) = fs::create_dir_all(install_dir) {
+        if err.kind() == io::ErrorKind::PermissionDenied {
+            create_dir_with_sudo(install_dir)
+                .with_context(|| format!("create install dir {}", install_dir.display()))?;
+            return Ok(());
+        }
+        return Err(err)
+            .with_context(|| format!("create install dir {}", install_dir.display()));
+    }
+    Ok(())
+}
+
+fn create_dir_with_sudo(install_dir: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let status = Command::new("sudo")
+            .arg("mkdir")
+            .arg("-p")
+            .arg("--")
+            .arg(install_dir)
+            .status()
+            .with_context(|| format!("run sudo mkdir -p {}", install_dir.display()))?;
+        if !status.success() {
+            bail!("sudo mkdir failed with status {}", status);
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = install_dir;
+        bail!("install location requires permissions not supported on this platform");
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

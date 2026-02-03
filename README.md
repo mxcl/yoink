@@ -28,7 +28,7 @@ $ yoink rm mxcl/brewx
 
 `YOINKDIR` - where to install things, defaults to `~/.local/bin`, if you set
 it to somewhere that requires `sudo` it will invoke `sudo` for the minimal
-atomic `mv` command required to move the binary into place.
+`mkdir -p` and atomic `mv` commands required to move the binary into place.
 
 ## Why This and Not All the Other Tools That Seem Identical?
 
