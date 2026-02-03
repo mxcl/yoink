@@ -13,6 +13,15 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    if first == "-V" || first == "--version" {
+        if args.next().is_some() {
+            eprintln!("yoink: extra arguments after {first} are not supported yet");
+            return ExitCode::from(2);
+        }
+        print_version();
+        return ExitCode::SUCCESS;
+    }
+
     if first == "ls" {
         if args.next().is_some() {
             eprintln!("yoink: extra arguments after ls are not supported yet");
@@ -111,4 +120,9 @@ fn print_usage() {
     eprintln!("  yoink rm <owner/repo>");
     eprintln!("  yoink uninstall <owner/repo>");
     eprintln!("  yoink x <owner/repo> [args...]");
+    eprintln!("  yoink --version");
+}
+
+fn print_version() {
+    println!("yoink {}", env!("CARGO_PKG_VERSION"));
 }
