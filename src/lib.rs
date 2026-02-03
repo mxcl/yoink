@@ -469,6 +469,10 @@ fn default_install_dir() -> Result<PathBuf> {
     if let Ok(dir) = env::var("YOINK_BIN_DIR") {
         return Ok(PathBuf::from(dir));
     }
+    if cfg!(windows) {
+        let base = dirs_next::data_local_dir().context("determine local data dir")?;
+        return Ok(base.join("Programs").join("yoink").join("bin"));
+    }
     let home = env::var("HOME")
         .ok()
         .map(PathBuf::from)
