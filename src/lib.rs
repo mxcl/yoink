@@ -24,6 +24,11 @@ struct Release {
 }
 
 pub fn install(repo: &str) -> Result<PathBuf> {
+    let (dest, _version) = install_with_version(repo)?;
+    Ok(dest)
+}
+
+fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
     let (owner, name) = parse_repo(repo)?;
     let client = github_client()?;
     let release = fetch_latest_release(&client, &owner, &name)?;
@@ -63,7 +68,7 @@ pub fn install(repo: &str) -> Result<PathBuf> {
     set_executable(&dest)?;
     record_install(&format!("{owner}/{name}"), &version, &dest)?;
 
-    Ok(dest)
+    Ok((dest, version))
 }
 
 pub fn is_repo_shape(input: &str) -> bool {
@@ -86,6 +91,34 @@ pub fn list_installs() -> Result<Vec<InstallSummary>> {
         });
     }
     Ok(installs)
+}
+
+#[derive(Debug)]
+pub struct UpgradeSummary {
+    pub repo: String,
+    pub version: String,
+    pub path: PathBuf,
+}
+
+pub fn upgrade_all() -> Result<Vec<UpgradeSummary>> {
+    let state = load_state()?;
+    let repos: Vec<String> = state.installs.keys().cloned().collect();
+    let mut upgrades = Vec::new();
+    for repo in repos {
+        let (path, version) = install_with_version(&repo)?;
+        upgrades.push(UpgradeSummary {
+            repo,
+            version: display_version(&version).to_string(),
+            path,
+        });
+    }
+    Ok(upgrades)
+}
+
+pub fn uninstall(repo: &str) -> Result<()> {
+    let (owner, name) = parse_repo(repo)?;
+    let key = format!("{owner}/{name}");
+    remove_install(&key)
 }
 
 fn parse_repo(repo: &str) -> Result<(String, String)> {
@@ -494,6 +527,42 @@ fn record_install(repo: &str, version: &str, bin: &Path) -> Result<()> {
             bin: bin.to_path_buf(),
         },
     );
+    write_state_locked(&mut file, &state)?;
+    file.unlock()
+        .with_context(|| format!("unlock state file {}", state_path.display()))?;
+    Ok(())
+}
+
+fn remove_install(repo: &str) -> Result<()> {
+    let state_path = state_path()?;
+    if !state_path.exists() {
+        bail!("no installs recorded");
+    }
+
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&state_path)
+        .with_context(|| format!("open state file {}", state_path.display()))?;
+    file.lock_exclusive()
+        .with_context(|| format!("lock state file {}", state_path.display()))?;
+
+    let mut state = read_state_locked(&mut file)?;
+    let entry = state
+        .installs
+        .remove(repo)
+        .with_context(|| format!("{} not installed", repo))?;
+
+    match fs::remove_file(&entry.bin) {
+        Ok(()) => {}
+        Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+        Err(err) => {
+            file.unlock()
+                .with_context(|| format!("unlock state file {}", state_path.display()))?;
+            return Err(err).with_context(|| format!("remove {}", entry.bin.display()));
+        }
+    }
+
     write_state_locked(&mut file, &state)?;
     file.unlock()
         .with_context(|| format!("unlock state file {}", state_path.display()))?;
