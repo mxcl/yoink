@@ -719,3 +719,30 @@ fn display_version(version: &str) -> &str {
     }
     version
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_write_roundtrip() {
+        let mut file = tempfile::tempfile().expect("create temp file");
+        let mut installs = BTreeMap::new();
+        installs.insert(
+            "mxcl/yoink".to_string(),
+            InstallEntry {
+                version: "v0.1.0".to_string(),
+                bin: PathBuf::from("/tmp/yoink"),
+            },
+        );
+        let state = InstallState { installs };
+
+        write_state_locked(&mut file, &state).expect("write state");
+        let read_back = read_state_locked(&mut file).expect("read state");
+
+        assert_eq!(read_back.installs.len(), 1);
+        let entry = read_back.installs.get("mxcl/yoink").expect("entry");
+        assert_eq!(entry.version, "v0.1.0");
+        assert_eq!(entry.bin, PathBuf::from("/tmp/yoink"));
+    }
+}
