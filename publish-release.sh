@@ -1,4 +1,6 @@
-#!/usr/bin/env -S pkgx +gh +gum +npx +rustup +python@3.11 +zig bash -exo pipefail
+#!/bin/bash
+
+set -exo pipefail
 
 cd "$(dirname "$0")"
 
