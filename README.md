@@ -41,7 +41,7 @@ $ yoink rm mxcl/brewx
 Why install anything? Just run things.
 
 ```sh
-$ sh <(curl https://yoink.sh/x) denoland/deno run 'console.log("hi")'
+$ sh <(curl https://yoink.sh) x denoland/deno run 'console.log("hi")'
 hi
 
 $ which deno
@@ -55,6 +55,19 @@ $ which deno
 deno not found
 ```
 
+Go wild.
+
+```sh
+$ sh <(curl https://yoink.sh) x mxcl/brewx cowsay hi yoinksters
+ ____
+< hi >
+ ----
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+```
 ## Configuring This Thing
 
 `YOINKDIR` - where to install things, defaults to `~/.local/bin`, if you set

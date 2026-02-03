@@ -8,8 +8,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-#[cfg(unix)]
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 use tempfile::TempDir;
 use walkdir::WalkDir;
 
@@ -31,53 +30,36 @@ pub fn install(repo: &str) -> Result<PathBuf> {
 }
 
 fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
-    let (owner, name) = parse_repo(repo)?;
-    let client = github_client()?;
-    let release = fetch_latest_release(&client, &owner, &name)?;
-    let asset = pick_asset(&release.assets)?;
-    let version = release
-        .tag_name
-        .as_deref()
-        .unwrap_or("unknown")
-        .to_string();
-
-    let temp_dir = tempfile::tempdir().context("create temp dir")?;
-    let download_path = temp_dir.path().join(&asset.name);
-    download_asset(&client, &asset.browser_download_url, &download_path)?;
-
-    let mut _extracted = None;
-    let payload_path = if is_archive_name(&asset.name) {
-        let extracted_path = extract_archive(&download_path, &name)?;
-        let path = extracted_path.path.clone();
-        _extracted = Some(extracted_path);
-        path
-    } else if is_gzip_name(&asset.name) {
-        let extracted_path = extract_gzip(&download_path, &name)?;
-        let path = extracted_path.path.clone();
-        _extracted = Some(extracted_path);
-        path
-    } else {
-        download_path
-    };
-
+    let prepared = prepare_binary(repo)?;
     let install_dir = default_install_dir()?;
     ensure_install_dir(&install_dir)?;
 
-    let dest = install_dir.join(binary_name(&name));
-    if let Err(err) = install_binary(&payload_path, &dest) {
+    let dest = install_dir.join(binary_name(&prepared.name));
+    if let Err(err) = install_binary(&prepared.path, &dest) {
         if is_permission_denied(&err) {
-            install_with_sudo(&payload_path, &dest)?;
+            install_with_sudo(&prepared.path, &dest)?;
         } else {
             return Err(err);
         }
     }
-    record_install(&format!("{owner}/{name}"), &version, &dest)?;
+    let version = prepared.version.clone();
+    record_install(&format!("{}/{}", prepared.owner, prepared.name), &version, &dest)?;
 
     Ok((dest, version))
 }
 
 pub fn is_repo_shape(input: &str) -> bool {
     parse_repo(input).is_ok()
+}
+
+pub fn run(repo: &str, args: &[String]) -> Result<i32> {
+    let prepared = prepare_binary(repo)?;
+    set_executable(&prepared.path)?;
+    let status = Command::new(&prepared.path)
+        .args(args)
+        .status()
+        .with_context(|| format!("run {}", prepared.path.display()))?;
+    Ok(exit_status_code(status))
 }
 
 #[derive(Debug)]
@@ -134,6 +116,55 @@ fn parse_repo(repo: &str) -> Result<(String, String)> {
         bail!("expected repo in owner/name form")
     }
     Ok((owner.to_string(), name.to_string()))
+}
+
+struct PreparedBinary {
+    owner: String,
+    name: String,
+    version: String,
+    path: PathBuf,
+    _download_dir: TempDir,
+    _extracted: Option<ExtractedPath>,
+}
+
+fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
+    let (owner, name) = parse_repo(repo)?;
+    let client = github_client()?;
+    let release = fetch_latest_release(&client, &owner, &name)?;
+    let asset = pick_asset(&release.assets)?;
+    let version = release
+        .tag_name
+        .as_deref()
+        .unwrap_or("unknown")
+        .to_string();
+
+    let temp_dir = tempfile::tempdir().context("create temp dir")?;
+    let download_path = temp_dir.path().join(&asset.name);
+    download_asset(&client, &asset.browser_download_url, &download_path)?;
+
+    let mut extracted = None;
+    let payload_path = if is_archive_name(&asset.name) {
+        let extracted_path = extract_archive(&download_path, &name)?;
+        let path = extracted_path.path.clone();
+        extracted = Some(extracted_path);
+        path
+    } else if is_gzip_name(&asset.name) {
+        let extracted_path = extract_gzip(&download_path, &name)?;
+        let path = extracted_path.path.clone();
+        extracted = Some(extracted_path);
+        path
+    } else {
+        download_path
+    };
+
+    Ok(PreparedBinary {
+        owner,
+        name,
+        version,
+        path: payload_path,
+        _download_dir: temp_dir,
+        _extracted: extracted,
+    })
 }
 
 fn github_client() -> Result<Client> {
@@ -722,6 +753,20 @@ fn display_version(version: &str) -> &str {
         }
     }
     version
+}
+
+fn exit_status_code(status: ExitStatus) -> i32 {
+    if let Some(code) = status.code() {
+        return code;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return 128 + signal;
+        }
+    }
+    1
 }
 
 #[cfg(test)]

@@ -64,6 +64,23 @@ fn main() -> ExitCode {
                 ExitCode::from(1)
             }
         }
+    } else if first == "x" {
+        let Some(repo) = args.next() else {
+            eprintln!("yoink: expected owner/repo after {first}");
+            print_usage();
+            return ExitCode::from(2);
+        };
+        let rest: Vec<String> = args.collect();
+        match yoink::run(&repo, &rest) {
+            Ok(code) => {
+                let code = u8::try_from(code).unwrap_or(1);
+                ExitCode::from(code)
+            }
+            Err(err) => {
+                eprintln!("yoink: {err:?}");
+                ExitCode::from(1)
+            }
+        }
     } else if yoink::is_repo_shape(&first) {
         if args.next().is_some() {
             eprintln!("yoink: extra arguments after repo are not supported yet");
@@ -93,4 +110,5 @@ fn print_usage() {
     eprintln!("  yoink upgrade");
     eprintln!("  yoink rm <owner/repo>");
     eprintln!("  yoink uninstall <owner/repo>");
+    eprintln!("  yoink x <owner/repo> [args...]");
 }
