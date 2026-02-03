@@ -143,28 +143,28 @@ targets=(
 for target in "${targets[@]}"; do
   case "$target" in
   aarch64-apple-darwin)
-    os_name=Darwin
-    arch_name=arm64
+    uname_s=Darwin
+    uname_m=arm64
     ;;
   x86_64-apple-darwin)
-    os_name=Darwin
-    arch_name=x86_64
+    uname_s=Darwin
+    uname_m=x86_64
     ;;
   x86_64-unknown-linux-gnu)
-    os_name=Linux
-    arch_name=x86_64
+    uname_s=Linux
+    uname_m=x86_64
     ;;
   aarch64-unknown-linux-gnu)
-    os_name=Linux
-    arch_name=aarch64
+    uname_s=Linux
+    uname_m=aarch64
     ;;
   aarch64-pc-windows-gnu)
-    os_name=Windows
-    arch_name=arm64
+    uname_s=Windows
+    uname_m=arm64
     ;;
   x86_64-pc-windows-gnu)
-    os_name=Windows
-    arch_name=x86_64
+    uname_s=Windows
+    uname_m=x86_64
     ;;
   *)
     echo "error: unsupported target $target" >&2
@@ -172,7 +172,7 @@ for target in "${targets[@]}"; do
     ;;
   esac
 
-  artifact="$bin_name-$v_new-$os_name-$arch_name.tar.gz"
+  artifact="$bin_name-$v_new-$uname_s-$uname_m.tar.gz"
   bin_file="$bin_name"
   if [[ "$target" == *-pc-windows-* ]]; then
     bin_file="$bin_file.exe"
