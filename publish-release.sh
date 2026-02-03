@@ -136,7 +136,6 @@ targets=(
   x86_64-apple-darwin
   aarch64-unknown-linux-gnu
   x86_64-unknown-linux-gnu
-  x86_64-pc-windows-gnu
 )
 
 toolchain="$(rustup show active-toolchain | awk '{print $1}')"
@@ -163,10 +162,6 @@ for target in "${targets[@]}"; do
   aarch64-unknown-linux-gnu)
     uname_s=Linux
     uname_m=aarch64
-    ;;
-  x86_64-pc-windows-gnu)
-    uname_s=Windows
-    uname_m=x86_64
     ;;
   *)
     echo "error: unsupported target $target" >&2
