@@ -73,36 +73,29 @@ fn main() -> ExitCode {
                 ExitCode::from(1)
             }
         }
-    } else if first == "x" {
-        let Some(repo) = args.next() else {
-            eprintln!("yoink: expected owner/repo after {first}");
-            print_usage();
-            return ExitCode::from(2);
-        };
-        let rest: Vec<String> = args.collect();
-        match yoink::run(&repo, &rest) {
-            Ok(code) => {
-                let code = u8::try_from(code).unwrap_or(1);
-                ExitCode::from(code)
-            }
-            Err(err) => {
-                eprintln!("yoink: {err:?}");
-                ExitCode::from(1)
-            }
-        }
     } else if yoink::is_repo_shape(&first) {
-        if args.next().is_some() {
-            eprintln!("yoink: extra arguments after repo are not supported yet");
-            return ExitCode::from(2);
-        }
-        match yoink::install(&first) {
-            Ok(path) => {
-                println!("{}", path.display());
-                ExitCode::SUCCESS
+        let rest: Vec<String> = args.collect();
+        if rest.is_empty() {
+            match yoink::install(&first) {
+                Ok(path) => {
+                    println!("{}", path.display());
+                    ExitCode::SUCCESS
+                }
+                Err(err) => {
+                    eprintln!("yoink: {err:?}");
+                    ExitCode::from(1)
+                }
             }
-            Err(err) => {
-                eprintln!("yoink: {err:?}");
-                ExitCode::from(1)
+        } else {
+            match yoink::run(&first, &rest) {
+                Ok(code) => {
+                    let code = u8::try_from(code).unwrap_or(1);
+                    ExitCode::from(code)
+                }
+                Err(err) => {
+                    eprintln!("yoink: {err:?}");
+                    ExitCode::from(1)
+                }
             }
         }
     } else {
@@ -114,12 +107,11 @@ fn main() -> ExitCode {
 
 fn print_usage() {
     eprintln!("usage:");
-    eprintln!("  yoink <owner/repo>");
+    eprintln!("  yoink <owner/repo> [args...]");
     eprintln!("  yoink ls");
     eprintln!("  yoink upgrade");
     eprintln!("  yoink rm <owner/repo>");
     eprintln!("  yoink uninstall <owner/repo>");
-    eprintln!("  yoink x <owner/repo> [args...]");
     eprintln!("  yoink --version");
 }
 

@@ -35,19 +35,19 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
-### `yoink x`
+### `yoink <owner/repo> [args...]`
 
 Why install anything? Just run things.
 
 ```sh
-$ sh <(curl https://yoink.sh) x denoland/deno eval 'console.log("hi")'
+$ sh <(curl https://yoink.sh) denoland/deno eval 'console.log("hi")'
 hi
 
 $ which deno
 deno not found
 
 $ sh <(curl https://yoink.sh) mxcl/yoink
-$ yoink x denoland/deno eval 'console.log("hi")'
+$ yoink denoland/deno eval 'console.log("hi")'
 hi
 
 $ which deno
@@ -56,7 +56,7 @@ deno not found
 $ which yoink
 ~/.local/bin/yoink
 
-$ yoink rm yoink
+$ yoink rm mxcl/yoink
 $ which yoink
 yoink not found
 ```
@@ -64,10 +64,10 @@ yoink not found
 Go wild.
 
 ```sh
-$ sh <(curl https://yoink.sh) x mxcl/brewx cowsay hi yoinksters
+$ sh <(curl https://yoink.sh) mxcl/brewx cowsay hi yoinksters
  _______________
 < hi yoinksters >
- ---------------
+---------------
         \   ^__^
          \  (oo)\_______
             (__)\       )\/\
@@ -86,8 +86,8 @@ it to somewhere that requires `sudo` it will invoke `sudo` for the minimal
 - I tried all the others and they *sucked*.
 - We provide a curl one-liner so you don’t even need to install yoink to
   use it. Which is especially nice for READMEs.
-- We provide `yoink x` so you don’t need to install anything to use anything
-  even.
+- If you pass args after `owner/repo`, yoink runs the binary without
+  installing it.
 
 ## Something Didn’t Work
 
