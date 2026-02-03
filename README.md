@@ -21,7 +21,7 @@ $ brewx cowsay we need moar yoink
                 ||     ||
 
 $ sh <(curl https://yoink.sh) mxcl/yoink
-# ^^ yoinking yoink with yoink itself like a boss
+# ^^ yoinking yoink with yoink (like a boss)
 
 $ yoink ls
 mxcl/brewx@0.4.2
