@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pkgx +gh +gum +npx +rustup +python@3.11 bash -exo pipefail
+#!/usr/bin/env -S pkgx +gh +gum +npx +rustup +python@3.11 +zig +cargo-zigbuild bash -exo pipefail
 
 cd "$(dirname "$0")"
 
@@ -131,29 +131,14 @@ else
   echo  # spacer
 fi
 
-case "$(uname -s)" in
-Darwin)
-  targets=("aarch64-apple-darwin" "x86_64-apple-darwin")
-  ;;
-Linux)
-  case "$(uname -m)" in
-  x86_64)
-    targets=("x86_64-unknown-linux-gnu")
-    ;;
-  aarch64|arm64)
-    targets=("aarch64-unknown-linux-gnu")
-    ;;
-  *)
-    echo "error: unsupported Linux arch $(uname -m)" >&2
-    exit 1
-    ;;
-  esac
-  ;;
-*)
-  echo "error: unsupported host OS $(uname -s)" >&2
-  exit 1
-  ;;
-esac
+targets=(
+  aarch64-apple-darwin
+  x86_64-apple-darwin
+  aarch64-unknown-linux-gnu
+  x86_64-unknown-linux-gnu
+  aarch64-pc-windows-gnu
+  x86_64-pc-windows-gnu
+)
 
 for target in "${targets[@]}"; do
   case "$target" in
@@ -173,6 +158,14 @@ for target in "${targets[@]}"; do
     os_name=Linux
     arch_name=aarch64
     ;;
+  aarch64-pc-windows-gnu)
+    os_name=Windows
+    arch_name=arm64
+    ;;
+  x86_64-pc-windows-gnu)
+    os_name=Windows
+    arch_name=x86_64
+    ;;
   *)
     echo "error: unsupported target $target" >&2
     exit 1
@@ -180,13 +173,23 @@ for target in "${targets[@]}"; do
   esac
 
   artifact="$bin_name-$v_new-$os_name-$arch_name.tar.gz"
+  bin_file="$bin_name"
+  if [[ "$target" == *-pc-windows-* ]]; then
+    bin_file="$bin_file.exe"
+  fi
 
   rustup target add "$target"
 
-  cargo build --release --target "$target"
+  if [ "$target" = "aarch64-apple-darwin" ] && [ "$(uname -s)" = "Darwin" ]; then
+    cargo build --release --target "$target"
+  elif [ "$target" = "x86_64-apple-darwin" ] && [ "$(uname -s)" = "Darwin" ]; then
+    cargo build --release --target "$target"
+  else
+    cargo zigbuild --release --target "$target"
+  fi
 
   rm -f "$artifact"
-  tar -C "target/$target/release" -czf "$artifact" "$bin_name"
+  tar -C "target/$target/release" -czf "$artifact" "$bin_file"
 
   gh release upload --clobber v$v_new "$artifact"
 done
