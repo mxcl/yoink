@@ -24,6 +24,20 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
+### `yoinkx`
+
+Why install anything? Just run things.
+
+```sh
+$ curl https://yoink.sh/x | sh -- denoland/deno run 'console.log("hi")'
+hi
+
+$ curl https://yoink.sh | sh -- mxcl/yoink
+$ yoink x denoland/deno run 'console.log("hi")'
+hi
+```
+
+
 ## Configuring This Thing
 
 `YOINKDIR` - where to install things, defaults to `~/.local/bin`, if you set
