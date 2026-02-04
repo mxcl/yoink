@@ -35,15 +35,25 @@ fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
     ensure_install_dir(&install_dir)?;
 
     let dest = install_dir.join(binary_name(&prepared.name));
-    if let Err(err) = install_binary(&prepared.path, &dest) {
-        if is_permission_denied(&err) {
-            install_with_sudo(&prepared.path, &dest)?;
-        } else {
-            return Err(err);
+    install_payload(&prepared.path, &dest)?;
+    let mut installed_bins = vec![dest.clone()];
+    for extra in &prepared.extra_paths {
+        let Some(name) = extra.file_name() else {
+            continue;
+        };
+        let extra_dest = install_dir.join(name);
+        if installed_bins.iter().any(|path| path == &extra_dest) {
+            continue;
         }
+        install_payload(extra, &extra_dest)?;
+        installed_bins.push(extra_dest);
     }
     let version = prepared.version.clone();
-    record_install(&format!("{}/{}", prepared.owner, prepared.name), &version, &dest)?;
+    record_install(
+        &format!("{}/{}", prepared.owner, prepared.name),
+        &version,
+        &installed_bins,
+    )?;
 
     Ok((dest, version))
 }
@@ -123,8 +133,9 @@ struct PreparedBinary {
     name: String,
     version: String,
     path: PathBuf,
+    extra_paths: Vec<PathBuf>,
     _download_dir: TempDir,
-    _extracted: Option<ExtractedPath>,
+    _extracted: Option<ExtractedPaths>,
 }
 
 fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
@@ -143,18 +154,20 @@ fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
     download_asset(&client, &asset.browser_download_url, &download_path)?;
 
     let mut extracted = None;
-    let payload_path = if is_archive_name(&asset.name) {
-        let extracted_path = extract_archive(&download_path, &name)?;
-        let path = extracted_path.path.clone();
-        extracted = Some(extracted_path);
-        path
+    let (payload_path, extra_paths) = if is_archive_name(&asset.name) {
+        let extracted_paths = extract_archive(&download_path, &name)?;
+        let primary = extracted_paths.primary.clone();
+        let extras = extracted_paths.extras.clone();
+        extracted = Some(extracted_paths);
+        (primary, extras)
     } else if is_gzip_name(&asset.name) {
-        let extracted_path = extract_gzip(&download_path, &name)?;
-        let path = extracted_path.path.clone();
-        extracted = Some(extracted_path);
-        path
+        let extracted_paths = extract_gzip(&download_path, &name)?;
+        let primary = extracted_paths.primary.clone();
+        let extras = extracted_paths.extras.clone();
+        extracted = Some(extracted_paths);
+        (primary, extras)
     } else {
-        download_path
+        (download_path, Vec::new())
     };
 
     Ok(PreparedBinary {
@@ -162,6 +175,7 @@ fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
         name,
         version,
         path: payload_path,
+        extra_paths,
         _download_dir: temp_dir,
         _extracted: extracted,
     })
@@ -330,12 +344,13 @@ fn download_asset(client: &Client, url: &str, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-struct ExtractedPath {
-    path: PathBuf,
+struct ExtractedPaths {
+    primary: PathBuf,
+    extras: Vec<PathBuf>,
     _temp_dir: TempDir,
 }
 
-fn extract_archive(archive_path: &Path, repo_name: &str) -> Result<ExtractedPath> {
+fn extract_archive(archive_path: &Path, repo_name: &str) -> Result<ExtractedPaths> {
     let temp_dir = tempfile::tempdir().context("create extract dir")?;
     let extract_root = temp_dir.path();
 
@@ -357,14 +372,15 @@ fn extract_archive(archive_path: &Path, repo_name: &str) -> Result<ExtractedPath
         bail!("unsupported archive format: {}", archive_path.display());
     }
 
-    let path = find_binary(extract_root, repo_name)?;
-    Ok(ExtractedPath {
-        path,
+    let (primary, extras) = find_binaries(extract_root, repo_name)?;
+    Ok(ExtractedPaths {
+        primary,
+        extras,
         _temp_dir: temp_dir,
     })
 }
 
-fn extract_gzip(gzip_path: &Path, repo_name: &str) -> Result<ExtractedPath> {
+fn extract_gzip(gzip_path: &Path, repo_name: &str) -> Result<ExtractedPaths> {
     let temp_dir = tempfile::tempdir().context("create extract dir")?;
     let extract_root = temp_dir.path();
 
@@ -383,14 +399,15 @@ fn extract_gzip(gzip_path: &Path, repo_name: &str) -> Result<ExtractedPath> {
     io::copy(&mut decoder, &mut output)
         .with_context(|| format!("write {}", dest.display()))?;
 
-    let path = if dest_name == repo_name {
-        dest
+    let (primary, extras) = if dest_name == repo_name {
+        (dest, Vec::new())
     } else {
-        find_binary(extract_root, repo_name)?
+        find_binaries(extract_root, repo_name)?
     };
 
-    Ok(ExtractedPath {
-        path,
+    Ok(ExtractedPaths {
+        primary,
+        extras,
         _temp_dir: temp_dir,
     })
 }
@@ -454,12 +471,13 @@ fn extract_tar_bz2(archive_path: &Path, dest: &Path) -> Result<()> {
         .with_context(|| format!("unpack {}", archive_path.display()))
 }
 
-fn find_binary(root: &Path, repo_name: &str) -> Result<PathBuf> {
+fn find_binaries(root: &Path, repo_name: &str) -> Result<(PathBuf, Vec<PathBuf>)> {
     let target = binary_name(repo_name).to_lowercase();
     let fallback = repo_name.to_lowercase();
 
     let mut exact_matches = Vec::new();
     let mut candidates = Vec::new();
+    let mut probable_matches = Vec::new();
 
     for entry in WalkDir::new(root) {
         let entry = entry.context("walk archive")?;
@@ -474,42 +492,49 @@ fn find_binary(root: &Path, repo_name: &str) -> Result<PathBuf> {
             .to_lowercase();
         if name == target || name == fallback {
             exact_matches.push(path.to_path_buf());
-        } else {
-            candidates.push(path.to_path_buf());
+        }
+        candidates.push(path.to_path_buf());
+        if is_probable_binary_candidate(path) {
+            probable_matches.push(path.to_path_buf());
         }
     }
 
-    if exact_matches.len() == 1 {
-        return Ok(exact_matches.remove(0));
-    }
-    if exact_matches.len() > 1 {
+    let primary = if exact_matches.len() == 1 {
+        exact_matches.remove(0)
+    } else if exact_matches.len() > 1 {
         exact_matches.sort_by_key(|path| path.to_string_lossy().len());
-        return Ok(exact_matches.remove(0));
-    }
-    let mut bin_matches: Vec<PathBuf> = candidates
-        .iter()
-        .filter(|path| path_has_component(path, "bin"))
-        .filter(|path| is_probable_binary_candidate(path))
-        .cloned()
-        .collect();
-    if bin_matches.len() == 1 {
-        return Ok(bin_matches.remove(0));
+        exact_matches.remove(0)
+    } else if probable_matches.len() == 1 {
+        probable_matches[0].clone()
+    } else if probable_matches.len() > 1 {
+        let mut bin_matches: Vec<PathBuf> = probable_matches
+            .iter()
+            .filter(|path| path_has_component(path, "bin"))
+            .cloned()
+            .collect();
+        if bin_matches.len() == 1 {
+            bin_matches.remove(0)
+        } else {
+            let mut sorted = probable_matches.clone();
+            sorted.sort_by_key(|path| path.to_string_lossy().len());
+            sorted.remove(0)
+        }
+    } else if candidates.len() == 1 {
+        candidates.remove(0)
+    } else {
+        bail!("unable to locate extracted binary");
+    };
+
+    let mut extras = Vec::new();
+    if !probable_matches.is_empty() {
+        extras = probable_matches
+            .into_iter()
+            .filter(|path| *path != primary)
+            .collect();
+        extras.sort_by_key(|path| path.to_string_lossy().len());
     }
 
-    let mut probable_matches: Vec<PathBuf> = candidates
-        .iter()
-        .filter(|path| is_probable_binary_candidate(path))
-        .cloned()
-        .collect();
-    if probable_matches.len() == 1 {
-        return Ok(probable_matches.remove(0));
-    }
-
-    if candidates.len() == 1 {
-        return Ok(candidates.remove(0));
-    }
-
-    bail!("unable to locate extracted binary")
+    Ok((primary, extras))
 }
 
 fn path_has_component(path: &Path, needle: &str) -> bool {
@@ -582,6 +607,17 @@ fn is_probable_binary_candidate(path: &Path) -> bool {
     }
 
     true
+}
+
+fn install_payload(payload_path: &Path, dest: &Path) -> Result<()> {
+    if let Err(err) = install_binary(payload_path, dest) {
+        if is_permission_denied(&err) {
+            install_with_sudo(payload_path, dest)?;
+        } else {
+            return Err(err);
+        }
+    }
+    Ok(())
 }
 
 fn default_install_dir() -> Result<PathBuf> {
@@ -718,9 +754,17 @@ struct InstallState {
 struct InstallEntry {
     version: String,
     bin: PathBuf,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    bins: Vec<PathBuf>,
 }
 
-fn record_install(repo: &str, version: &str, bin: &Path) -> Result<()> {
+impl InstallEntry {
+    fn all_bins(&self) -> impl Iterator<Item = &PathBuf> {
+        std::iter::once(&self.bin).chain(self.bins.iter())
+    }
+}
+
+fn record_install(repo: &str, version: &str, bins: &[PathBuf]) -> Result<()> {
     let state_path = state_path()?;
     if let Some(parent) = state_path.parent() {
         fs::create_dir_all(parent)
@@ -737,11 +781,15 @@ fn record_install(repo: &str, version: &str, bin: &Path) -> Result<()> {
         .with_context(|| format!("lock state file {}", state_path.display()))?;
 
     let mut state = read_state_locked(&mut file)?;
+    let (primary, extras) = bins
+        .split_first()
+        .context("record install without binaries")?;
     state.installs.insert(
         repo.to_string(),
         InstallEntry {
             version: version.to_string(),
-            bin: bin.to_path_buf(),
+            bin: primary.to_path_buf(),
+            bins: extras.to_vec(),
         },
     );
     write_state_locked(&mut file, &state)?;
@@ -770,13 +818,15 @@ fn remove_install(repo: &str) -> Result<()> {
         .remove(repo)
         .with_context(|| format!("{} not installed", repo))?;
 
-    match fs::remove_file(&entry.bin) {
-        Ok(()) => {}
-        Err(err) if err.kind() == io::ErrorKind::NotFound => {}
-        Err(err) => {
-            file.unlock()
-                .with_context(|| format!("unlock state file {}", state_path.display()))?;
-            return Err(err).with_context(|| format!("remove {}", entry.bin.display()));
+    for bin in entry.all_bins() {
+        match fs::remove_file(bin) {
+            Ok(()) => {}
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(err) => {
+                file.unlock()
+                    .with_context(|| format!("unlock state file {}", state_path.display()))?;
+                return Err(err).with_context(|| format!("remove {}", bin.display()));
+            }
         }
     }
 
@@ -873,6 +923,7 @@ mod tests {
             InstallEntry {
                 version: "v0.1.0".to_string(),
                 bin: PathBuf::from("/tmp/yoink"),
+                bins: Vec::new(),
             },
         );
         let state = InstallState { installs };

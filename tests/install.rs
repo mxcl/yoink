@@ -1,7 +1,7 @@
 use serial_test::serial;
 use std::env;
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn install_repo(repo: &str) -> tempfile::TempDir {
     let temp = tempfile::tempdir().expect("create temp dir");
@@ -49,6 +49,18 @@ fn installs_cli() {
     let _temp = install_repo("cli/cli");
 }
 
+#[test]
+#[serial]
+fn installs_uv() {
+    let temp = install_repo("astral-sh/uv");
+    let uv = installed_bin(&temp, "uv");
+    let uvx = installed_bin(&temp, "uvx");
+    assert!(uv.exists(), "{} should exist", uv.display());
+    assert_executable(&uv);
+    assert!(uvx.exists(), "{} should exist", uvx.display());
+    assert_executable(&uvx);
+}
+
 fn assert_executable(path: &Path) {
     #[cfg(unix)]
     {
@@ -59,6 +71,21 @@ fn assert_executable(path: &Path) {
             .permissions()
             .mode();
         assert!(mode & 0o111 != 0, "{} not executable", path.display());
+    }
+}
+
+fn installed_bin(temp: &tempfile::TempDir, name: &str) -> PathBuf {
+    temp.path()
+        .join(".local")
+        .join("bin")
+        .join(binary_name(name))
+}
+
+fn binary_name(name: &str) -> String {
+    if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
     }
 }
 
