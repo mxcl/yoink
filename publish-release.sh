@@ -239,7 +239,7 @@ fi
 
 cloudfront_function_name="yoink-sh-root"
 cloudfront_function_file="$(mktemp -t yoink-sh-function.XXXXXX.js)"
-cat <<EOF >"$cloudfront_function_file"
+cat <<'EOF' >"$cloudfront_function_file"
 function handler(event) {
   var request = event.request;
   var headers = request.headers || {};
@@ -250,12 +250,12 @@ function handler(event) {
 
   if (isRootGet && isCli) {
     var body = [
-      "tmp=\$(mktemp -d)",
-      "trap 'rm -rf \\\\\\"\\\$tmp\\\\\\"' EXIT",
-      "curl -LSsf \\\\\\"https://github.com/mxcl/yoink/releases/download/v${v_new}/yoink-${v_new}-\$(uname -s)-\$(uname -m).tar.gz\\\\\\" | tar -xz -C \\\\\\"\\\$tmp\\\\\\"",
-      "\\\\\\\"\\\$tmp/yoink\\\\\\\" \\\\\\"\\\$@\\\\\\"",
+      "tmp=$(mktemp -d)",
+      "trap 'rm -rf \"$tmp\"' EXIT",
+      "curl -LSsf \"https://github.com/mxcl/yoink/releases/download/v@VERSION@/yoink-@VERSION@-$(uname -s)-$(uname -m).tar.gz\" | tar -xz -C \"$tmp\"",
+      "\"$tmp/yoink\" \"$@\"",
       ""
-    ].join("\\\\n");
+    ].join("\n");
 
     return {
       statusCode: 200,
@@ -279,6 +279,8 @@ function handler(event) {
   };
 }
 EOF
+
+sed -i '' "s/@VERSION@/$v_new/g" "$cloudfront_function_file"
 
 cloudfront_function_etag="$(
   aws cloudfront describe-function \
