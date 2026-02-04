@@ -37,6 +37,12 @@ fn installs_gum() {
     let _temp = install_repo("charmbracelet/gum");
 }
 
+#[test]
+#[serial]
+fn installs_direnv() {
+    let _temp = install_repo("direnv/direnv");
+}
+
 fn assert_executable(path: &Path) {
     #[cfg(unix)]
     {
