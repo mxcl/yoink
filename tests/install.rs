@@ -43,6 +43,12 @@ fn installs_direnv() {
     let _temp = install_repo("direnv/direnv");
 }
 
+#[test]
+#[serial]
+fn installs_cli() {
+    let _temp = install_repo("cli/cli");
+}
+
 fn assert_executable(path: &Path) {
     #[cfg(unix)]
     {
