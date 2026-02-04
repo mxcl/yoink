@@ -264,7 +264,8 @@ function handler(event) {
         'content-type': { value: 'text/plain; charset=utf-8' },
         'cache-control': { value: 'no-store' }
       },
-      body: body
+      body: body,
+      bodyEncoding: 'text'
     };
   }
 
