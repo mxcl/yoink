@@ -7,25 +7,12 @@ $ sh <(curl https://yoink.sh) mxcl/brewx
 installed: ~/.local/bin/brewx
 ```
 
-This doesn’t install `yoink` itself:
+This installs [`brewx`](https://github.com/mxcl/brewx) but it doesn’t install
+`yoink` itself:
 
 ```sh
 $ which yoink
 yoink not found  # `yoink` NOT YOINKED
-```
-
-But it did install `brewx`:
-
-```sh
-$ brewx cowsay we need moar yoink
- ____________________
-< we need moar yoink >
- --------------------
-        \   ^__^
-         \  (oo)\_______
-            (__)\       )\/\
-                ||----w |
-                ||     ||
 ```
 
 You can install yoink with yoink if you like:
@@ -49,7 +36,7 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
-Why install anything? You can just run things.
+Alternatively, you can just run things:
 
 ```sh
 $ sh <(curl https://yoink.sh) denoland/deno eval 'console.log("hi")'
