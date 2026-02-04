@@ -91,3 +91,10 @@ it to somewhere that requires `sudo` it will invoke `sudo` for the minimal
 ## Something Didn’t Work
 
 Report the bug! We’re literally pre 1.0 and open source here!
+
+## Making Your Repo Yoinkable
+
+1. Upload binaries as tarballs with one folder.
+2. Name the binary with platform and architecture in the name, e.g. `mytool-linux-x64`.
+3. We try to be smart and handle all weird variations so this should be sufficient for us to find the right binary for you.
+4. If we don't work with your repo, open an issue and we'll do a 3 hour turn around for you.
