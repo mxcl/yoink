@@ -141,6 +141,34 @@ targets=(
 )
 
 toolchain="$(rustup show active-toolchain | awk '{print $1}')"
+host_uname_s="$(uname -s)"
+
+strip_binary() {
+  local bin_path="$1"
+  local target="$2"
+
+  if command -v llvm-strip >/dev/null 2>&1; then
+    llvm-strip "$bin_path"
+    return
+  fi
+
+  case "$target" in
+  *-apple-darwin)
+    if command -v strip >/dev/null 2>&1 && [ "$host_uname_s" = "Darwin" ]; then
+      strip -x "$bin_path"
+      return
+    fi
+    ;;
+  *-unknown-linux-gnu)
+    if command -v strip >/dev/null 2>&1 && [ "$host_uname_s" = "Linux" ]; then
+      strip --strip-unneeded "$bin_path"
+      return
+    fi
+    ;;
+  esac
+
+  echo "note: skip strip for $target (no compatible strip found)"
+}
 
 for target in "${targets[@]}"; do
   if ! rustup target list | grep -Eq "^${target}([[:space:]]|$)"; then
@@ -186,6 +214,9 @@ for target in "${targets[@]}"; do
   else
     cargo zigbuild --release --target "$target"
   fi
+
+  bin_path="target/$target/release/$bin_file"
+  strip_binary "$bin_path" "$target" || true
 
   rm -f "$artifact"
   tar -C "target/$target/release" -czf "$artifact" "$bin_file"
