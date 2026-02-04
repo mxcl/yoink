@@ -237,4 +237,68 @@ if [ "$clobber" = false ]; then
     --discussion-category=Announcements
 fi
 
+cloudfront_function_name="yoink-sh-root"
+cloudfront_function_file="$(mktemp -t yoink-sh-function.XXXXXX.js)"
+cat <<EOF >"$cloudfront_function_file"
+function handler(event) {
+  var request = event.request;
+  var headers = request.headers || {};
+  var userAgentHeader = headers['user-agent'];
+  var userAgent = userAgentHeader ? userAgentHeader.value.toLowerCase() : '';
+  var isCli = userAgent.indexOf('curl') !== -1 || userAgent.indexOf('wget') !== -1;
+  var isRootGet = request.method === 'GET' && request.uri === '/';
+
+  if (isRootGet && isCli) {
+    var body = [
+      "tmp=\$(mktemp -d)",
+      "trap 'rm -rf \\\\\\"\\\$tmp\\\\\\"' EXIT",
+      "curl -LSsf \\\\\\"https://github.com/mxcl/yoink/releases/download/v${v_new}/yoink-${v_new}-\$(uname -s)-\$(uname -m).tar.gz\\\\\\" | tar -xz -C \\\\\\"\\\$tmp\\\\\\"",
+      "\\\\\\\"\\\$tmp/yoink\\\\\\\" \\\\\\"\\\$@\\\\\\"",
+      ""
+    ].join("\\\\n");
+
+    return {
+      statusCode: 200,
+      statusDescription: 'OK',
+      headers: {
+        'content-type': { value: 'text/plain; charset=utf-8' },
+        'cache-control': { value: 'no-store' }
+      },
+      body: body
+    };
+  }
+
+  return {
+    statusCode: 302,
+    statusDescription: 'Found',
+    headers: {
+      location: { value: 'https://github.com/mxcl/yoink' },
+      'cache-control': { value: 'no-store' }
+    }
+  };
+}
+EOF
+
+cloudfront_function_etag="$(
+  aws cloudfront describe-function \
+    --name "$cloudfront_function_name" \
+    --stage DEVELOPMENT \
+    --query 'ETag' \
+    --output text
+)"
+
+cloudfront_function_etag="$(
+  aws cloudfront update-function \
+    --name "$cloudfront_function_name" \
+    --if-match "$cloudfront_function_etag" \
+    --function-config Comment="yoink.sh root handler",Runtime="cloudfront-js-2.0" \
+    --function-code "fileb://$cloudfront_function_file" \
+    --query 'ETag' \
+    --output text
+)"
+
+aws cloudfront publish-function \
+  --name "$cloudfront_function_name" \
+  --if-match "$cloudfront_function_etag"
+
 gh release view v$v_new --web
