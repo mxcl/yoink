@@ -1,16 +1,22 @@
 # Yoink
 
+Install things that provide standalone binaries on GitHub releases:
+
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
 installed: ~/.local/bin/brewx
-# ^^ installs the latest brewx from its GitHub releases
+```
 
-$ which brewx
-~/.local/bin/brewx
+This doesn’t install `yoink` itself:
 
+```sh
 $ which yoink
 yoink not found  # `yoink` NOT YOINKED
+```
 
+But it did install `brewx`:
+
+```sh
 $ brewx cowsay we need moar yoink
  ____________________
 < we need moar yoink >
@@ -20,10 +26,18 @@ $ brewx cowsay we need moar yoink
             (__)\       )\/\
                 ||----w |
                 ||     ||
+```
 
+You can install yoink with yoink if you like:
+
+```sh
 $ sh <(curl https://yoink.sh) mxcl/yoink
-# ^^ yoinking yoink with yoink (like a boss)
+installed: ~/.local/bin/yoink
+```
 
+It does package managery stuff too:
+
+```sh
 $ yoink ls
 mxcl/brewx@0.4.2
 mxcl/yoink@0.1.0
@@ -35,9 +49,7 @@ $ yoink rm mxcl/brewx
 # ^^ removes brewx
 ```
 
-## `yoinkx`
-
-Why install anything? Just run things.
+Why install anything? You can just run things.
 
 ```sh
 $ sh <(curl https://yoink.sh) denoland/deno eval 'console.log("hi")'
