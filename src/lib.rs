@@ -486,11 +486,102 @@ fn find_binary(root: &Path, repo_name: &str) -> Result<PathBuf> {
         exact_matches.sort_by_key(|path| path.to_string_lossy().len());
         return Ok(exact_matches.remove(0));
     }
+    let mut bin_matches: Vec<PathBuf> = candidates
+        .iter()
+        .filter(|path| path_has_component(path, "bin"))
+        .filter(|path| is_probable_binary_candidate(path))
+        .cloned()
+        .collect();
+    if bin_matches.len() == 1 {
+        return Ok(bin_matches.remove(0));
+    }
+
+    let mut probable_matches: Vec<PathBuf> = candidates
+        .iter()
+        .filter(|path| is_probable_binary_candidate(path))
+        .cloned()
+        .collect();
+    if probable_matches.len() == 1 {
+        return Ok(probable_matches.remove(0));
+    }
+
     if candidates.len() == 1 {
         return Ok(candidates.remove(0));
     }
 
     bail!("unable to locate extracted binary")
+}
+
+fn path_has_component(path: &Path, needle: &str) -> bool {
+    path.components().any(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .map(|segment| segment.eq_ignore_ascii_case(needle))
+            .unwrap_or(false)
+    })
+}
+
+fn is_probable_binary_candidate(path: &Path) -> bool {
+    let name = match path.file_name().and_then(OsStr::to_str) {
+        Some(name) => name.to_lowercase(),
+        None => return false,
+    };
+
+    if name.starts_with('.')
+        || name.starts_with("readme")
+        || name.starts_with("license")
+        || name.starts_with("changelog")
+        || name.starts_with("notice")
+        || name.starts_with("copying")
+    {
+        return false;
+    }
+
+    if path_has_component(path, "share")
+        || path_has_component(path, "doc")
+        || path_has_component(path, "docs")
+        || path_has_component(path, "man")
+        || path_has_component(path, "completions")
+        || path_has_component(path, "completion")
+    {
+        return false;
+    }
+
+    if let Some(ext) = Path::new(&name).extension().and_then(OsStr::to_str) {
+        let ext = ext.to_lowercase();
+        if matches!(
+            ext.as_str(),
+            "md"
+                | "txt"
+                | "rst"
+                | "json"
+                | "yaml"
+                | "yml"
+                | "toml"
+                | "ini"
+                | "cfg"
+                | "conf"
+                | "1"
+                | "2"
+                | "3"
+                | "4"
+                | "5"
+                | "6"
+                | "7"
+                | "8"
+                | "9"
+                | "asc"
+                | "sig"
+                | "sha256"
+                | "sha512"
+                | "md5"
+        ) {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn default_install_dir() -> Result<PathBuf> {
