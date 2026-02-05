@@ -888,7 +888,12 @@ fn remove_install(repo: &str) -> Result<()> {
         .with_context(|| format!("{} not installed", repo))?;
 
     for bin in entry.all_bins() {
-        match fs::remove_file(bin) {
+        let result = if bin.is_dir() {
+            fs::remove_dir_all(bin)
+        } else {
+            fs::remove_file(bin)
+        };
+        match result {
             Ok(()) => {}
             Err(err) if err.kind() == io::ErrorKind::NotFound => {}
             Err(err) => {
