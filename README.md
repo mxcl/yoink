@@ -4,6 +4,7 @@
        src="https://coveralls.io/repos/github/mxcl/yoink/badge.svg?branch=main">
 </a>
 
+Zero-conf, ephermeral binary downloader and/or executor for GitHub Releases.
 
 ## Downloading Standalone Binaries
 
