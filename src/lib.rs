@@ -1247,6 +1247,70 @@ mod tests {
     }
 
     #[test]
+    #[serial]
+    #[cfg(unix)]
+    fn install_payload_retries_with_sudo_on_permission_denied() {
+        let (_sudo_dir, _path_guard) = setup_fake_sudo();
+        let temp = tempfile::tempdir().expect("temp dir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::write(&src, b"hello").expect("write");
+        fs::write(&dest, b"old").expect("write dest");
+
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&dest).expect("stat").permissions();
+            perms.set_mode(0o444);
+            fs::set_permissions(&dest, perms).expect("chmod");
+        }
+
+        install_payload(&src, &dest).expect("install payload");
+        assert_eq!(fs::read(&dest).expect("read"), b"hello");
+    }
+
+    #[test]
+    #[serial]
+    #[cfg(unix)]
+    fn install_with_sudo_uses_fake_sudo() {
+        let (_sudo_dir, _path_guard) = setup_fake_sudo();
+        let temp = tempfile::tempdir().expect("temp dir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::write(&src, b"hello").expect("write");
+
+        install_with_sudo(&src, &dest).expect("install with sudo");
+        assert_eq!(fs::read(&dest).expect("read"), b"hello");
+    }
+
+    #[test]
+    #[serial]
+    #[cfg(unix)]
+    fn ensure_install_dir_uses_sudo_on_permission_denied() {
+        let (_sudo_dir, _path_guard) = setup_fake_sudo();
+        let temp = tempfile::tempdir().expect("temp dir");
+        let protected = temp.path().join("protected");
+        fs::create_dir_all(&protected).expect("mkdir");
+
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&protected).expect("stat").permissions();
+            perms.set_mode(0o500);
+            fs::set_permissions(&protected, perms).expect("chmod");
+        }
+
+        let install_dir = protected.join("bin");
+        ensure_install_dir(&install_dir).expect("ensure install dir");
+        assert!(install_dir.exists());
+
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&protected).expect("stat").permissions();
+            perms.set_mode(0o700);
+            fs::set_permissions(&protected, perms).expect("chmod");
+        }
+    }
+
+    #[test]
     fn is_permission_denied_detects_nested_error() {
         let err = anyhow::Error::new(io::Error::new(io::ErrorKind::PermissionDenied, "nope"));
         assert!(is_permission_denied(&err));
@@ -1765,6 +1829,50 @@ mod tests {
                 env::remove_var(self.key);
             }
         }
+    }
+
+    #[cfg(unix)]
+    fn setup_fake_sudo() -> (tempfile::TempDir, EnvGuard) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().expect("temp dir");
+        let sudo_path = dir.path().join("sudo");
+        let script = r#"#!/bin/sh
+set -e
+cmd="$1"
+shift
+
+case "$cmd" in
+  mv)
+    exec /bin/mv "$@"
+    ;;
+  mkdir)
+    last=""
+    for arg in "$@"; do
+      last="$arg"
+    done
+    if [ -n "$last" ]; then
+      parent=$(dirname "$last")
+      chmod u+w "$parent" 2>/dev/null || true
+    fi
+    exec /bin/mkdir "$@"
+    ;;
+  *)
+    echo "unexpected sudo command: $cmd" >&2
+    exit 1
+    ;;
+esac
+"#;
+
+        fs::write(&sudo_path, script).expect("write fake sudo");
+        let mut perms = fs::metadata(&sudo_path).expect("stat").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&sudo_path, perms).expect("chmod");
+
+        let existing = env::var("PATH").unwrap_or_default();
+        let path = format!("{}:{}", dir.path().display(), existing);
+        let guard = EnvGuard::set("PATH", path);
+        (dir, guard)
     }
 
     struct TestServer {
