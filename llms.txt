@@ -1,0 +1,12 @@
+Yoink — download/run GitHub release binaries.
+
+Usage:
+- yoink owner/repo
+- Downloads latest release binary to the current directory.
+- Stdout: ./binary (primary). Stderr: absolute paths for all binaries.
+- yoink owner/repo [args...]
+- Downloads to a temp directory and runs it; nothing is saved.
+- JSON=1 yoink owner/repo
+- Stdout JSON: repo, tag, url, asset, paths (absolute).
+- One-liner: sh <(curl https://yoink.sh) owner/repo [args...]
+- Install to PATH: mv "$(sh <(curl https://yoink.sh) owner/repo)" ~/.local/bin/

@@ -247,6 +247,36 @@ function handler(event) {
   var userAgent = userAgentHeader ? userAgentHeader.value.toLowerCase() : '';
   var isCli = userAgent.indexOf('curl') !== -1 || userAgent.indexOf('wget') !== -1;
   var isRootGet = request.method === 'GET' && request.uri === '/';
+  var isLlmsGet = request.method === 'GET' && request.uri === '/llms.txt';
+
+  if (isLlmsGet) {
+    var body = [
+      "Yoink — download/run GitHub release binaries.",
+      "",
+      "Usage:",
+      "- yoink owner/repo",
+      "- Downloads latest release binary to the current directory.",
+      "- Stdout: ./binary (primary). Stderr: absolute paths for all binaries.",
+      "- yoink owner/repo [args...]",
+      "- Downloads to a temp directory and runs it; nothing is saved.",
+      "- JSON=1 yoink owner/repo",
+      "- Stdout JSON: repo, tag, url, asset, paths (absolute).",
+      "- One-liner: sh <(curl https://yoink.sh) owner/repo [args...]",
+      "- Install to PATH: mv \"$(sh <(curl https://yoink.sh) owner/repo)\" ~/.local/bin/",
+      ""
+    ].join("\n");
+
+    return {
+      statusCode: 200,
+      statusDescription: 'OK',
+      headers: {
+        'content-type': { value: 'text/plain; charset=utf-8' },
+        'cache-control': { value: 'no-store' }
+      },
+      body: body,
+      bodyEncoding: 'text'
+    };
+  }
 
   if (isRootGet && isCli) {
     var body = [
