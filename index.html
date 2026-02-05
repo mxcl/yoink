@@ -52,7 +52,6 @@
           );
         mix-blend-mode: screen;
         pointer-events: none;
-        animation: fuzz 4s steps(6, end) infinite;
       }
 
       #riot {
@@ -67,15 +66,9 @@
         font-weight: 900;
         color: var(--hot-pink);
         text-shadow:
-          0 0 20px rgba(255, 255, 255, 0.5),
-          0 0 60px rgba(255, 0, 255, 0.7),
-          -6px 6px 0 #000;
-        mix-blend-mode: screen;
-        animation:
-          spin var(--spin) linear infinite,
-          jitter var(--jitter) steps(2, end) infinite,
-          strobe var(--strobe) steps(2, end) infinite;
-        filter: hue-rotate(var(--hue)) saturate(2);
+          0 0 18px rgba(255, 255, 255, 0.4),
+          -4px 4px 0 #000;
+        animation: spin var(--spin) linear infinite;
       }
 
       #hero {
@@ -90,7 +83,6 @@
           0 0 25px rgba(168, 255, 0, 0.7),
           0 0 80px rgba(168, 255, 0, 0.9),
           0 0 120px rgba(255, 47, 208, 0.7);
-        animation: hero-gyrate 3.4s ease-in-out infinite;
       }
 
       #hero::before,
@@ -105,13 +97,11 @@
       #hero::before {
         transform: translate(-8px, 6px) skewX(-6deg);
         color: var(--electric);
-        animation: glitch 0.7s steps(2, end) infinite;
       }
 
       #hero::after {
         transform: translate(10px, -6px) skewX(8deg);
         color: var(--burn);
-        animation: glitch 0.6s steps(2, end) infinite reverse;
       }
 
       .marquee {
@@ -153,8 +143,6 @@
         box-shadow:
           0 0 20px rgba(0, 240, 255, 0.5),
           0 0 60px rgba(255, 47, 208, 0.35);
-        backdrop-filter: blur(12px) saturate(1.6);
-        -webkit-backdrop-filter: blur(12px) saturate(1.6);
       }
 
       pre {
@@ -213,74 +201,6 @@
         }
       }
 
-      @keyframes jitter {
-        0% {
-          transform: translate(0, 0) rotate(0deg) scale(1);
-        }
-        25% {
-          transform: translate(-12px, 8px) rotate(6deg) scale(1.05);
-        }
-        50% {
-          transform: translate(16px, -10px) rotate(-8deg) scale(0.95);
-        }
-        75% {
-          transform: translate(-8px, -14px) rotate(12deg) scale(1.1);
-        }
-        100% {
-          transform: translate(0, 0) rotate(0deg) scale(1);
-        }
-      }
-
-      @keyframes strobe {
-        0% {
-          opacity: 0.15;
-        }
-        10% {
-          opacity: 1;
-        }
-        20% {
-          opacity: 0.3;
-        }
-        30% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0.2;
-        }
-      }
-
-      @keyframes hero-gyrate {
-        0% {
-          transform: rotate(-2deg) scale(0.95);
-        }
-        50% {
-          transform: rotate(2deg) scale(1.05) skewX(4deg);
-        }
-        100% {
-          transform: rotate(-2deg) scale(0.95);
-        }
-      }
-
-      @keyframes glitch {
-        0% {
-          clip-path: inset(0 0 80% 0);
-        }
-        20% {
-          clip-path: inset(10% 0 40% 0);
-        }
-        40% {
-          clip-path: inset(40% 0 20% 0);
-        }
-        60% {
-          clip-path: inset(70% 0 5% 0);
-        }
-        80% {
-          clip-path: inset(5% 0 60% 0);
-        }
-        100% {
-          clip-path: inset(0 0 80% 0);
-        }
-      }
 
       @keyframes marquee {
         0% {
@@ -321,18 +241,6 @@
         }
       }
 
-      @keyframes fuzz {
-        0% {
-          opacity: 0.3;
-        }
-        50% {
-          opacity: 0.7;
-        }
-        100% {
-          opacity: 0.3;
-        }
-      }
-
       @media (prefers-reduced-motion: reduce) {
         * {
           animation-duration: 0.001ms !important;
@@ -369,7 +277,7 @@ YOINK</code></pre>
     <script>
       const riot = document.getElementById("riot");
       const colors = ["#ff2fd0", "#00f0ff", "#a8ff00", "#ff6b00", "#ffffff"];
-      const count = 28;
+      const count = 12;
 
       for (let i = 0; i < count; i += 1) {
         const yoink = document.createElement("div");
@@ -377,12 +285,9 @@ YOINK</code></pre>
         yoink.textContent = "YOINK";
         yoink.style.left = `${Math.random() * 100}vw`;
         yoink.style.top = `${Math.random() * 100}vh`;
-        yoink.style.fontSize = `${80 + Math.random() * 220}px`;
-        yoink.style.opacity = `${0.2 + Math.random() * 0.8}`;
-        yoink.style.setProperty("--spin", `${10 + Math.random() * 14}s`);
-        yoink.style.setProperty("--jitter", `${1.6 + Math.random() * 2.6}s`);
-        yoink.style.setProperty("--strobe", `${1.1 + Math.random() * 2.4}s`);
-        yoink.style.setProperty("--hue", `${Math.random() * 360}deg`);
+        yoink.style.fontSize = `${90 + Math.random() * 140}px`;
+        yoink.style.opacity = `${0.25 + Math.random() * 0.5}`;
+        yoink.style.setProperty("--spin", `${18 + Math.random() * 18}s`);
         yoink.style.color = colors[i % colors.length];
         riot.appendChild(yoink);
       }
