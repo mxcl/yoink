@@ -8,8 +8,14 @@ struct DownloadJson {
     repo: String,
     tag: String,
     url: String,
-    asset: String,
-    paths: Vec<String>,
+    executables: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct InfoJson {
+    repo: String,
+    tag: String,
+    url: String,
 }
 
 fn main() -> ExitCode {
@@ -151,12 +157,10 @@ fn main() -> ExitCode {
     if info_only {
         match yoink::release_info(repo) {
             Ok(info) => {
-                let payload = DownloadJson {
+                let payload = InfoJson {
                     repo: format!("{}/{}", info.owner, info.name),
                     tag: info.tag,
                     url: info.asset_url,
-                    asset: info.asset_name,
-                    paths: Vec::new(),
                 };
                 match serde_json::to_string_pretty(&payload) {
                     Ok(json) => println!("{json}"),
@@ -176,16 +180,21 @@ fn main() -> ExitCode {
         match yoink::download_to_dir(repo, &download_dir) {
             Ok(summary) => {
                 if json_output {
+                    let mut executables = Vec::new();
+                    for path in &summary.paths {
+                        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                            continue;
+                        };
+                        if executables.iter().any(|existing| existing == name) {
+                            continue;
+                        }
+                        executables.push(name.to_string());
+                    }
                     let payload = DownloadJson {
                         repo: summary.repo,
                         tag: summary.tag,
                         url: summary.url,
-                        asset: summary.asset_name,
-                        paths: summary
-                            .paths
-                            .iter()
-                            .map(|path| path.display().to_string())
-                            .collect(),
+                        executables,
                     };
                     match serde_json::to_string_pretty(&payload) {
                         Ok(json) => println!("{json}"),
