@@ -419,6 +419,10 @@ aws s3 sync \
   --include "preview.webp" \
   "$PWD/" "s3://$site_bucket/"
 
+aws cloudfront create-invalidation \
+  --distribution-id "$cloudfront_distribution_id" \
+  --paths "/*"
+
 llms_body_lines="$(
   python - <<'PY'
 import json
