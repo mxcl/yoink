@@ -29,6 +29,29 @@ pub fn install(repo: &str) -> Result<PathBuf> {
     Ok(dest)
 }
 
+pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<Vec<PathBuf>> {
+    let prepared = prepare_binary(repo)?;
+    let mut downloaded = Vec::new();
+
+    let dest = dest_dir.join(binary_name(&prepared.name));
+    install_binary(&prepared.path, &dest)?;
+    downloaded.push(dest);
+
+    for extra in &prepared.extra_paths {
+        let Some(name) = extra.file_name() else {
+            continue;
+        };
+        let extra_dest = dest_dir.join(name);
+        if downloaded.iter().any(|path| path == &extra_dest) {
+            continue;
+        }
+        install_binary(extra, &extra_dest)?;
+        downloaded.push(extra_dest);
+    }
+
+    Ok(downloaded)
+}
+
 fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
     let prepared = prepare_binary(repo)?;
     let install_dir = default_install_dir()?;
