@@ -20,3 +20,6 @@ fs2 = "0.4"
 
 [dev-dependencies]
 serial_test = "3"
+
+[profile.release]
+strip = true
