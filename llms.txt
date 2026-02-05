@@ -9,8 +9,8 @@ Usage:
 - yoink owner/repo [args...]
 - Downloads to a temp directory and runs it; nothing is saved.
 - yoink -j owner/repo
-- Stdout JSON: repo, tag, url, asset, paths (absolute).
+- Stdout JSON: repo, tag, url, executables.
 - yoink -jI owner/repo
-- JSON metadata only (no download); paths is empty.
+- JSON metadata only (no download): repo, tag, url.
 - One-liner: sh <(curl https://yoink.sh) owner/repo [args...]
 - Install to PATH: sh <(curl https://yoink.sh) -C ~/.local/bin owner/repo
