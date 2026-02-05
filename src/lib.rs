@@ -888,7 +888,14 @@ fn remove_install(repo: &str) -> Result<()> {
         .with_context(|| format!("{} not installed", repo))?;
 
     for bin in entry.all_bins() {
-        match fs::remove_file(bin) {
+        let result = if bin.is_symlink() {
+            fs::remove_file(bin)
+        } else if bin.is_dir() {
+            fs::remove_dir_all(bin)
+        } else {
+            fs::remove_file(bin)
+        };
+        match result {
             Ok(()) => {}
             Err(err) if err.kind() == io::ErrorKind::NotFound => {}
             Err(err) => {
@@ -1338,16 +1345,17 @@ mod tests {
 
     #[test]
     #[serial]
-    fn remove_install_errors_on_unremovable_path() {
+    fn remove_install_handles_directories() {
         let temp = tempfile::tempdir().expect("temp dir");
         let _home = EnvGuard::set("HOME", temp.path());
         let _xdg = EnvGuard::set("XDG_DATA_HOME", temp.path());
 
         let bin_dir = temp.path().join("bin_dir");
         fs::create_dir_all(&bin_dir).expect("mkdir");
-        record_install("mxcl/yoink", "v1.0.0", &[bin_dir]).expect("record install");
+        record_install("mxcl/yoink", "v1.0.0", &[bin_dir.clone()]).expect("record install");
 
-        assert!(remove_install("mxcl/yoink").is_err());
+        assert!(remove_install("mxcl/yoink").is_ok());
+        assert!(!bin_dir.exists());
     }
 
     #[test]
