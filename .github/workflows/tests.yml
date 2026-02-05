@@ -20,3 +20,26 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Run install tests
         run: cargo test --test install
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      YOINK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+      - name: Run coverage
+        run: |
+          cargo tarpaulin --out Lcov --output-dir target/tarpaulin
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          file: target/tarpaulin/lcov.info
+          format: lcov
