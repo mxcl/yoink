@@ -162,6 +162,25 @@
         white-space: pre-wrap;
       }
 
+      .prompt,
+      .cmd {
+        font-weight: 700;
+        animation: cmd-shift 1.2s steps(2, end) infinite;
+      }
+
+      .prompt {
+        padding-right: 6px;
+      }
+
+      .cmd {
+        text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+      }
+
+      .output-red {
+        color: #ff2b2b;
+        text-shadow: 0 0 14px rgba(255, 43, 43, 0.8);
+      }
+
       a {
         color: var(--acid);
         text-decoration: none;
@@ -281,6 +300,21 @@
         }
       }
 
+      @keyframes cmd-shift {
+        0% {
+          color: #a8ff00;
+        }
+        33% {
+          color: #00f0ff;
+        }
+        66% {
+          color: #ff2fd0;
+        }
+        100% {
+          color: #a8ff00;
+        }
+      }
+
       @keyframes fuzz {
         0% {
           opacity: 0.3;
@@ -311,15 +345,15 @@
       <div id="hero">YOINK</div>
 
       <div class="panel">
-        <pre><code>sh <(curl https://yoink.sh) denoland/deno
-./deno
+        <pre><code><span class="prompt">$</span><span class="cmd">sh <(curl https://yoink.sh) denoland/deno</span>
+<span class="prompt">$</span><span class="cmd">./deno</span>
 
-$ ./deno eval 'console.log("%cYOINK", 'color:red')'
-YOINK</code></pre>
+<span class="prompt">$</span><span class="cmd">./deno eval 'console.log("%cYOINK", 'color:red')'</span>
+<span class="output-red">YOINK</span></code></pre>
       </div>
 
       <div class="panel">
-        <pre><code>sh <(curl https://yoink.sh) oven-sh/bun eval 'console.log("YOINK")'
+        <pre><code><span class="prompt">$</span><span class="cmd">sh <(curl https://yoink.sh) oven-sh/bun eval 'console.log("YOINK")'</span>
 YOINK</code></pre>
       </div>
 
