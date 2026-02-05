@@ -149,7 +149,6 @@ fn main() -> ExitCode {
     let use_relative = download_dir == cwd;
 
     if info_only {
-        json_output = true;
         match yoink::release_info(repo) {
             Ok(info) => {
                 let payload = DownloadJson {

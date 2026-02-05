@@ -33,7 +33,7 @@ ls: ./deno: No such file or directory
 > [!TIP]
 >
 > Installing things can have unexpected effects on systems.
-> Via yoink and tools like `pkgx` you and your agents can run tools without
+> With yoink and tools like `pkgx` you and your agents can run tools without
 > installing them.
 >
 > ```sh
@@ -48,22 +48,28 @@ ls: ./deno: No such file or directory
 >                 ||     ||
 > ```
 
-## Other Stuff
+### Other Stuff
 
 ```sh
-$ sh <(curl https://yoink.sh) -j mxcl/brewx
+$ sh <(curl https://yoink.sh) -j cli/cli
 {
-  "repo": "mxcl/brewx",
-  "tag": "v0.4.2",
-  "url": "https://github.com/mxcl/brewx/releases/download/v0.4.2/brewx-macos-arm64.tar.gz",
-  "asset": "brewx-macos-arm64.tar.gz",
-  "paths": ["/cwd/brewx"]
+  "repo": "cli/cli",
+  "tag": "v2.86.0",
+  "url": "https://github.com/cli/cli/releases/download/v2.86.0/gh_2.86.0_macOS_arm64.zip",
+  "executables": ["gh"]
 }
+
+$ ./gh --version
+gh version 2.86.0
 ```
 
 ```sh
-$ sh <(curl https://yoink.sh) -C $(mktemp -d) mxcl/brewx | xargs sudo install -m 755 -D /usr/local/bin
-# ^^ invokes sudo but only when atomically moving the binary into place
+$ sh <(curl https://yoink.sh) -C $(mktemp -d) astral-sh/uv | xargs sudo install -m 755 -D /usr/local/bin
+
+$ ls /usr/local/bin/uv*
+/usr/local/bin/uv
+/usr/local/bin/uvx
+# ^^ installed both executables from the release asset
 ```
 
 ```sh
@@ -71,14 +77,21 @@ $ sh <(curl https://yoink.sh) -C $(mktemp -d) mxcl/brewx | xargs sudo install -m
 $ sh <(curl https://yoink.sh) -jI direnv/direnv
 {
   "repo": "direnv/direnv",
-  "tag": "v0.4.2",
-  …
+  "tag": "v2.37.1",
+  "url": "https://github.com/direnv/direnv/releases/download/v2.37.1/direnv.darwin-arm64"
 }
 
-$ ls ./brewx
-ls: ./brewx: No such file or directory
+$ ls ./direnv
+ls: ./direnv: No such file or directory
 ```
 
+#### Platforms
+
+We have almost no platform specific code and will work on every platform that
+Rust supports.
+
+> Adding support to ./publish-release.sh for your platform is very welcome.
+> If you do so we will backfill the releases table.
 
 
 ## Why This and Not All the Other Tools That Seem Identical?
@@ -89,11 +102,35 @@ ls: ./brewx: No such file or directory
 - If you pass args after `owner/repo`, yoink runs the binary without
   saving it.
 
+## Vibecoding a Package Manager on Top of Yoink
+
+Do a combination of this:
+
+```sh
+$ sh <(curl https://yoink.sh) -C $(mktemp -d) astral-sh/uv | xargs sudo install -m 755 -D /usr/local/bin
+```
+
+And “headers only” checks to do outdated.
+
+```sh
+$ sh <(curl https://yoink.sh) -jI astral-sh/uv
+{
+  "repo": "astral-sh/uv",
+  "tag": "v0.4.0",
+}
+```
+
+Then vibe code a script to check the installed `uv --version` against the
+latest version that yoink can give you.
+
+> I did this: https://github.com/mxcl/bootstrap
+
+
 ## Something Didn’t Work
 
 Report the bug! We’re literally pre 1.0 and open source here!
 
-## Making Your Repo Yoinkable
+## Ensuring Your Repo is Yoinkable
 
 1. Upload binaries as tarballs with one folder.
 2. Name the binary with platform and architecture in the name, e.g.
