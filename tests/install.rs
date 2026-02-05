@@ -46,7 +46,10 @@ fn installs_direnv() {
 #[test]
 #[serial]
 fn installs_cli() {
-    let _temp = install_repo("cli/cli");
+    let temp = install_repo("cli/cli");
+    let gh = installed_bin(&temp, "gh");
+    assert!(gh.exists(), "{} should exist", gh.display());
+    assert_executable(&gh);
 }
 
 #[test]
