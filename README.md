@@ -4,26 +4,16 @@ Download standalone binaries from GitHub releases:
 
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
-/path/to/brewx
+./brewx
+
+$ ./brewx --version
+brewx 0.4.2
 ```
 
-By default, stdout prints the downloaded path(s). Stderr also prints
-`downloaded: /path/to/brewx` for each binary.
-
-This downloads [`brewx`](https://github.com/mxcl/brewx) into the current
-directory but it doesn’t install `yoink` itself:
+`yoink` is *not installed*. But if you want you can yoink `yoink`:
 
 ```sh
-$ which yoink
-yoink not found
-```
-
-If you want `yoink` in your PATH, download it and move it yourself:
-
-```sh
-$ sh <(curl https://yoink.sh) mxcl/yoink
-/path/to/yoink
-$ mv yoink ~/.local/bin/
+$ mv "$(sh <(curl https://yoink.sh) mxcl/yoink)" ~/.local/bin
 ```
 
 Set `JSON=1` to get machine readable output on stdout:
@@ -32,46 +22,44 @@ Set `JSON=1` to get machine readable output on stdout:
 $ JSON=1 sh <(curl https://yoink.sh) mxcl/brewx
 {
   "repo": "mxcl/brewx",
-  "version": "v0.4.2",
-  "url": "...",
-  "asset": "...",
-  "path": "...",
-  "paths": ["..."]
+  "tag": "v0.4.2",
+  "url": "https://github.com/mxcl/brewx/releases/download/v0.4.2/brewx-macos-arm64.tar.gz",
+  "asset": "brewx-macos-arm64.tar.gz",
+  "paths": ["/cwd/brewx"]
 }
 ```
 
-Alternatively, you can just run things:
+Keeping binaries around can be tedious:
 
 ```sh
 $ sh <(curl https://yoink.sh) denoland/deno eval 'console.log("hi")'
 hi
 
-$ which deno
-deno not found
-
-$ sh <(curl https://yoink.sh) mxcl/yoink
-/path/to/yoink
-$ ./yoink denoland/deno eval 'console.log("hi")'
-hi
+$ ls ./deno
+ls: ./deno: No such file or directory
 ```
 
-Go wild.
-
-```sh
-$ sh <(curl https://yoink.sh) mxcl/brewx npx cowsay hi yoinksters
- _______________
-< hi yoinksters >
----------------
-        \   ^__^
-         \  (oo)\_______
-            (__)\       )\/\
-                ||----w |
-                ||     ||
-```
+> [!TIP]
+>
+> Installing things can have unexpected effects on systems.
+> Via yoink and tools like `pkgx` you and your agents can run tools without
+> installing them.
+>
+> ```sh
+> $ sh <(curl https://yoink.sh) pkgxdev/pkgx npx cowsay hi yoinksters
+>  _______________
+> < hi yoinksters >
+> ---------------
+>         \   ^__^
+>          \  (oo)\_______
+>             (__)\       )\/\
+>                 ||----w |
+>                 ||     ||
+> ```
 
 ## Why This and Not All the Other Tools That Seem Identical?
 
-- I tried all the others and they *sucked*.
+- I tried all the others and didn’t like them.
 - We provide a curl one-liner so you don’t even need to install yoink to
   use it. Which is especially nice for READMEs.
 - If you pass args after `owner/repo`, yoink runs the binary without
