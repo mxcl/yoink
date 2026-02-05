@@ -2,6 +2,8 @@
 
 set -exo pipefail
 
+PATH="/opt/homebrew/bin:$PATH"
+
 cd "$(dirname "$0")"
 
 if ! git diff-index --quiet HEAD --; then
