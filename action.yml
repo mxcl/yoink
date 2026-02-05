@@ -121,13 +121,16 @@ v${version}/${artifact}"
         info_only_lc="$(printf '%s' "$info_only" \
           | tr '[:upper:]' '[:lower:]')"
 
+        run_args=()
         if [[ -n "$args" ]]; then
-          run_args=()
           while IFS= read -r line; do
             if [[ -n "$line" ]]; then
               run_args+=("$line")
             fi
           done <<<"$args"
+        fi
+
+        if [[ ${#run_args[@]} -gt 0 ]]; then
           "$yoink_bin" "$repo" "${run_args[@]}"
           exit 0
         fi
