@@ -239,6 +239,20 @@ fi
 
 cloudfront_function_name="yoink-sh-root"
 cloudfront_function_file="$(mktemp -t yoink-sh-function.XXXXXX.js)"
+llms_body_lines="$(
+  python - <<'PY'
+import json
+from pathlib import Path
+
+text = Path("llms.txt").read_text()
+lines = text.splitlines()
+if text.endswith("\n"):
+    lines.append("")
+for line in lines:
+    print(f"      {json.dumps(line)},")
+PY
+)"
+
 cat <<'EOF' >"$cloudfront_function_file"
 function handler(event) {
   var request = event.request;
@@ -251,19 +265,11 @@ function handler(event) {
 
   if (isLlmsGet) {
     var body = [
-      "Yoink — download/run GitHub release binaries.",
-      "",
-      "Usage:",
-      "- yoink owner/repo",
-      "- Downloads latest release binary to the current directory.",
-      "- Stdout: ./binary (primary). Stderr: absolute paths for all binaries.",
-      "- yoink owner/repo [args...]",
-      "- Downloads to a temp directory and runs it; nothing is saved.",
-      "- JSON=1 yoink owner/repo",
-      "- Stdout JSON: repo, tag, url, asset, paths (absolute).",
-      "- One-liner: sh <(curl https://yoink.sh) owner/repo [args...]",
-      "- Install to PATH: mv \"$(sh <(curl https://yoink.sh) owner/repo)\" ~/.local/bin/",
-      ""
+EOF
+
+printf '%s\n' "$llms_body_lines" >>"$cloudfront_function_file"
+
+cat <<'EOF' >>"$cloudfront_function_file"
     ].join("\n");
 
     return {
