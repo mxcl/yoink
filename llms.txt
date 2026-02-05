@@ -1,16 +1,11 @@
-Yoink — download/run GitHub release binaries.
+# Yoink: GitHub Release Downloader/Runnable
 
-Usage:
-- yoink owner/repo
-- Downloads latest release binary to the current directory.
-- Stdout: ./binary (one line per downloaded binary).
-- yoink -C <dir> owner/repo
-- Downloads into <dir> and prints absolute paths.
-- yoink owner/repo [args...]
-- Downloads to a temp directory and runs it; nothing is saved.
-- yoink -j owner/repo
-- Stdout JSON: repo, tag, url, executables.
-- yoink -jI owner/repo
-- JSON metadata only (no download): repo, tag, url.
-- One-liner: sh <(curl https://yoink.sh) owner/repo [args...]
-- Install to PATH: sh <(curl https://yoink.sh) -C ~/.local/bin owner/repo
+- Runs deno without ephemerally: `sh <(curl https://yoink.sh) denoland/deno --version`.
+- Writes `./deno`: `sh <(curl https://yoink.sh) denoland/deno`.
+
+## Notes
+
+- Ephemeral mode does indeed mean we will download both yoink and whatever you run *every time*.
+- So if you plan to run a lot of commands maybe write them first.
+- If you like you can install yoink with itself: `sh <(curl https://yoink.sh) mxcl/yoink`.
+- You can assess if an update is available for a command with header-only mode (outputs JSON): `sh <(curl https://yoink.sh) -Ij denoland/deno`.
