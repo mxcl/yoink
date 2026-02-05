@@ -5,10 +5,9 @@ use std::process::ExitCode;
 #[derive(Serialize)]
 struct DownloadJson {
     repo: String,
-    version: String,
+    tag: String,
     url: String,
     asset: String,
-    path: String,
     paths: Vec<String>,
 }
 
@@ -47,15 +46,14 @@ fn main() -> ExitCode {
             match yoink::download_to_dir(&first, &cwd) {
                 Ok(summary) => {
                     for path in &summary.paths {
-                        eprintln!("downloaded: {}", path.display());
+                        eprintln!("{}", path.display());
                     }
                     if json_output {
                         let payload = DownloadJson {
                             repo: summary.repo,
-                            version: summary.version,
+                            tag: summary.tag,
                             url: summary.url,
                             asset: summary.asset_name,
-                            path: summary.primary_path.display().to_string(),
                             paths: summary
                                 .paths
                                 .iter()
@@ -70,8 +68,11 @@ fn main() -> ExitCode {
                             }
                         }
                     } else {
-                        for path in &summary.paths {
-                            println!("{}", path.display());
+                        if let Ok(rel) = summary.primary_path.strip_prefix(&cwd) {
+                            let display = std::path::PathBuf::from(".").join(rel);
+                            println!("{}", display.display());
+                        } else {
+                            println!("{}", summary.primary_path.display());
                         }
                     }
                     ExitCode::SUCCESS

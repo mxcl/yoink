@@ -32,7 +32,7 @@ pub fn install(repo: &str) -> Result<PathBuf> {
 #[derive(Debug)]
 pub struct DownloadSummary {
     pub repo: String,
-    pub version: String,
+    pub tag: String,
     pub url: String,
     pub asset_name: String,
     pub primary_path: PathBuf,
@@ -60,7 +60,7 @@ pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<DownloadSummary> {
 
     Ok(DownloadSummary {
         repo: format!("{}/{}", prepared.owner, prepared.name),
-        version: prepared.version,
+        tag: prepared.version,
         url: prepared.asset_url,
         asset_name: prepared.asset_name,
         primary_path: dest,
