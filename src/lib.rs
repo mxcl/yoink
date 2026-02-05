@@ -283,7 +283,7 @@ fn github_api_base() -> String {
 
 fn resolve_release_info(client: &Client, owner: &str, repo: &str) -> Result<ReleaseInfo> {
     let release = fetch_latest_release(client, owner, repo)?;
-    let asset = pick_asset(&release.assets)?;
+    let asset = pick_asset(&release.assets, repo)?;
     let tag = release.tag_name.as_deref().unwrap_or("unknown").to_string();
 
     Ok(ReleaseInfo {
@@ -310,7 +310,7 @@ fn fetch_latest_release(client: &Client, owner: &str, repo: &str) -> Result<Rele
         .with_context(|| format!("parse release for {owner}/{repo}"))
 }
 
-fn pick_asset(assets: &[Asset]) -> Result<Asset> {
+fn pick_asset(assets: &[Asset], repo_name: &str) -> Result<Asset> {
     if assets.is_empty() {
         bail!("release has no assets")
     }
@@ -323,21 +323,38 @@ fn pick_asset(assets: &[Asset]) -> Result<Asset> {
         candidates = assets.iter().collect();
     }
 
-    let os_tokens = os_tokens();
-    let arch_tokens = arch_tokens();
-
-    let mut best: Option<(&Asset, i32)> = None;
-    for asset in candidates {
-        let score = asset_score(&asset.name, &os_tokens, &arch_tokens);
-        if best
-            .map(|(_, best_score)| score > best_score)
-            .unwrap_or(true)
-        {
-            best = Some((asset, score));
+    let mut prefer_shorter = false;
+    let repo_tokens = tokenize_name(repo_name);
+    if !repo_tokens.is_empty() {
+        let repo_candidates: Vec<&Asset> = candidates
+            .iter()
+            .copied()
+            .filter(|asset| asset_matches_repo(&asset.name, &repo_tokens))
+            .collect();
+        if !repo_candidates.is_empty() {
+            candidates = repo_candidates;
+            prefer_shorter = true;
         }
     }
 
-    best.map(|(asset, _)| asset.clone())
+    let os_tokens = os_tokens();
+    let arch_tokens = arch_tokens();
+
+    let mut best: Option<(&Asset, i32, usize)> = None;
+    for asset in candidates {
+        let score = asset_score(&asset.name, &os_tokens, &arch_tokens);
+        let stem_len = asset_stem(&asset.name).len();
+        if best
+            .map(|(_, best_score, best_len)| {
+                score > best_score || (prefer_shorter && score == best_score && stem_len < best_len)
+            })
+            .unwrap_or(true)
+        {
+            best = Some((asset, score, stem_len));
+        }
+    }
+
+    best.map(|(asset, _, _)| asset.clone())
         .context("no suitable assets")
 }
 
@@ -362,6 +379,35 @@ fn asset_score(name: &str, os_tokens: &[&str], arch_tokens: &[&str]) -> i32 {
 
 fn contains_any(haystack: &str, tokens: &[&str]) -> bool {
     tokens.iter().any(|token| haystack.contains(token))
+}
+
+fn tokenize_name(name: &str) -> Vec<String> {
+    name.to_lowercase()
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .map(|token| token.to_string())
+        .collect()
+}
+
+fn asset_matches_repo(asset_name: &str, repo_tokens: &[String]) -> bool {
+    let stem = asset_stem(asset_name);
+    let tokens = tokenize_name(stem);
+    tokens_match_sequence(&tokens, repo_tokens)
+}
+
+fn tokens_match_sequence(haystack: &[String], needle: &[String]) -> bool {
+    if needle.is_empty() {
+        return false;
+    }
+    if needle.len() > haystack.len() {
+        return false;
+    }
+    for start in 0..=(haystack.len() - needle.len()) {
+        if haystack[start..start + needle.len()] == *needle {
+            return true;
+        }
+    }
+    false
 }
 
 fn os_tokens() -> Vec<&'static str> {
@@ -407,6 +453,32 @@ fn is_archive_name(name: &str) -> bool {
 fn is_gzip_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     lower.ends_with(".gz") && !lower.ends_with(".tar.gz")
+}
+
+fn asset_stem(name: &str) -> &str {
+    let lower = name.to_lowercase();
+    if lower.ends_with(".tar.gz") {
+        return &name[..name.len().saturating_sub(7)];
+    }
+    if lower.ends_with(".tar.xz") {
+        return &name[..name.len().saturating_sub(7)];
+    }
+    if lower.ends_with(".tar.bz2") {
+        return &name[..name.len().saturating_sub(8)];
+    }
+    if lower.ends_with(".zip") {
+        return &name[..name.len().saturating_sub(4)];
+    }
+    if lower.ends_with(".tgz") {
+        return &name[..name.len().saturating_sub(4)];
+    }
+    if lower.ends_with(".gz") {
+        return &name[..name.len().saturating_sub(3)];
+    }
+    if lower.ends_with(".exe") {
+        return &name[..name.len().saturating_sub(4)];
+    }
+    name
 }
 
 fn download_asset(client: &Client, url: &str, dest: &Path) -> Result<()> {
@@ -1078,7 +1150,7 @@ mod tests {
                 browser_download_url: "http://example.com/tool-best".to_string(),
             },
         ];
-        let picked = pick_asset(&assets).expect("pick asset");
+        let picked = pick_asset(&assets, "tool").expect("pick asset");
         assert_eq!(picked.name, best_name);
         assert!(is_ignored_asset("foo.sha256"));
         assert!(is_archive_name("foo.tar.gz"));
@@ -1088,7 +1160,7 @@ mod tests {
 
     #[test]
     fn pick_asset_errors_on_empty_assets() {
-        assert!(pick_asset(&[]).is_err());
+        assert!(pick_asset(&[], "tool").is_err());
     }
 
     #[test]
@@ -1103,8 +1175,28 @@ mod tests {
                 browser_download_url: "http://example.com/tool.sig".to_string(),
             },
         ];
-        let picked = pick_asset(&assets).expect("pick asset");
+        let picked = pick_asset(&assets, "tool").expect("pick asset");
         assert!(picked.name.ends_with(".sha256") || picked.name.ends_with(".sig"));
+    }
+
+    #[test]
+    fn pick_asset_prefers_repo_stem() {
+        let os = os_tokens();
+        let arch = arch_tokens();
+        let name = format!("bun-{}-{}.zip", os[0], arch[0]);
+        let profile = format!("bun-profile-{}-{}.zip", os[0], arch[0]);
+        let assets = vec![
+            Asset {
+                name: profile.clone(),
+                browser_download_url: "http://example.com/bun-profile".to_string(),
+            },
+            Asset {
+                name: name.clone(),
+                browser_download_url: "http://example.com/bun".to_string(),
+            },
+        ];
+        let picked = pick_asset(&assets, "bun").expect("pick asset");
+        assert_eq!(picked.name, name);
     }
 
     #[test]
