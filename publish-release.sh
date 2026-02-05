@@ -240,11 +240,27 @@ fi
 
 cloudfront_function_name="yoink-sh-root"
 cloudfront_function_file="$(mktemp -t yoink-sh-function.XXXXXX.js)"
+cloudfront_origin_id="yoink-sh-site"
 site_bucket="${YOINK_SITE_BUCKET:-yoink-sh-site}"
 site_region="${YOINK_SITE_REGION:-$(aws configure get region || true)}"
+cloudfront_distribution_id="${YOINK_CLOUDFRONT_DISTRIBUTION_ID:-}"
+cloudfront_oac_name="${YOINK_SITE_OAC_NAME:-yoink-sh-site}"
 
 if [ -z "$site_region" ]; then
   site_region="us-east-1"
+fi
+
+if [ -z "$cloudfront_distribution_id" ]; then
+  cloudfront_distribution_id="$(
+    aws cloudfront list-distributions \
+      --query "DistributionList.Items[?Aliases.Items && contains(Aliases.Items, 'yoink.sh')].Id | [0]" \
+      --output text
+  )"
+fi
+
+if [ -z "$cloudfront_distribution_id" ] || [ "$cloudfront_distribution_id" = "None" ]; then
+  echo "error: cloudfront distribution for yoink.sh not found" >&2
+  exit 1
 fi
 
 if ! aws s3api head-bucket --bucket "$site_bucket" >/dev/null 2>&1; then
@@ -267,6 +283,132 @@ if [ ! -f "$PWD/preview.webp" ]; then
   echo "error: preview.webp not found (site sync)" >&2
   exit 1
 fi
+
+cloudfront_oac_id="$(
+  aws cloudfront list-origin-access-controls \
+    --query "OriginAccessControlList.Items[?Name=='$cloudfront_oac_name'].Id | [0]" \
+    --output text
+)"
+
+if [ -z "$cloudfront_oac_id" ] || [ "$cloudfront_oac_id" = "None" ]; then
+  cloudfront_oac_id="$(
+    aws cloudfront create-origin-access-control \
+      --origin-access-control-config \
+        "Name=$cloudfront_oac_name,Description=yoink.sh site origin access,SigningProtocol=sigv4,SigningBehavior=always,OriginAccessControlOriginType=s3" \
+      --query 'OriginAccessControl.Id' \
+      --output text
+  )"
+fi
+
+if [ "$site_region" = "us-east-1" ]; then
+  site_origin_domain="${site_bucket}.s3.amazonaws.com"
+else
+  site_origin_domain="${site_bucket}.s3.${site_region}.amazonaws.com"
+fi
+
+cloudfront_distribution_config_file="$(mktemp -t yoink-sh-dist.XXXXXX.json)"
+cloudfront_distribution_etag="$(
+  aws cloudfront get-distribution-config \
+    --id "$cloudfront_distribution_id" \
+    --query 'ETag' \
+    --output text
+)"
+
+aws cloudfront get-distribution-config \
+  --id "$cloudfront_distribution_id" \
+  --query 'DistributionConfig' \
+  --output json >"$cloudfront_distribution_config_file"
+
+python - "$cloudfront_distribution_config_file" \
+  "$cloudfront_origin_id" \
+  "$site_origin_domain" \
+  "$cloudfront_oac_id" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+origin_id = sys.argv[2]
+origin_domain = sys.argv[3]
+oac_id = sys.argv[4]
+
+with open(path, "r", encoding="utf-8") as handle:
+    config = json.load(handle)
+
+origins = config.setdefault("Origins", {"Items": [], "Quantity": 0})
+items = origins.get("Items") or []
+origin = next((item for item in items if item.get("Id") == origin_id), None)
+if origin is None:
+    origin = {"Id": origin_id}
+    items.append(origin)
+
+origin["DomainName"] = origin_domain
+origin.setdefault("OriginPath", "")
+origin["CustomHeaders"] = {"Quantity": 0}
+origin["ConnectionAttempts"] = origin.get("ConnectionAttempts", 3)
+origin["ConnectionTimeout"] = origin.get("ConnectionTimeout", 10)
+origin["S3OriginConfig"] = {"OriginAccessIdentity": ""}
+origin["OriginAccessControlId"] = oac_id
+origin.pop("CustomOriginConfig", None)
+
+origins["Items"] = items
+origins["Quantity"] = len(items)
+
+default_behavior = config.get("DefaultCacheBehavior")
+if isinstance(default_behavior, dict):
+    default_behavior["TargetOriginId"] = origin_id
+
+config["DefaultRootObject"] = "index.html"
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(config, handle, ensure_ascii=False, indent=2)
+PY
+
+aws cloudfront update-distribution \
+  --id "$cloudfront_distribution_id" \
+  --if-match "$cloudfront_distribution_etag" \
+  --distribution-config "file://$cloudfront_distribution_config_file"
+
+account_id="$(aws sts get-caller-identity --query Account --output text)"
+bucket_policy="$(
+  python - "$site_bucket" "$account_id" "$cloudfront_distribution_id" <<'PY'
+import json
+import sys
+
+bucket = sys.argv[1]
+account_id = sys.argv[2]
+distribution_id = sys.argv[3]
+
+policy = {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowCloudFrontRead",
+            "Effect": "Allow",
+            "Principal": {"Service": "cloudfront.amazonaws.com"},
+            "Action": "s3:GetObject",
+            "Resource": [
+                f"arn:aws:s3:::{bucket}/index.html",
+                f"arn:aws:s3:::{bucket}/preview.webp",
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "AWS:SourceArn": (
+                        f"arn:aws:cloudfront::{account_id}:distribution/"
+                        f"{distribution_id}"
+                    )
+                }
+            },
+        }
+    ],
+}
+
+print(json.dumps(policy))
+PY
+)"
+
+aws s3api put-bucket-policy \
+  --bucket "$site_bucket" \
+  --policy "$bucket_policy"
 
 aws s3 sync \
   --only-show-errors \
