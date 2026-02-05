@@ -24,6 +24,15 @@ struct Release {
     tag_name: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct ReleaseInfo {
+    pub owner: String,
+    pub name: String,
+    pub tag: String,
+    pub asset_name: String,
+    pub asset_url: String,
+}
+
 pub fn install(repo: &str) -> Result<PathBuf> {
     let (dest, _version) = install_with_version(repo)?;
     Ok(dest)
@@ -39,8 +48,16 @@ pub struct DownloadSummary {
     pub paths: Vec<PathBuf>,
 }
 
+pub fn release_info(repo: &str) -> Result<ReleaseInfo> {
+    let (owner, name) = parse_repo(repo)?;
+    let client = github_client()?;
+    resolve_release_info(&client, &owner, &name)
+}
+
 pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<DownloadSummary> {
     let prepared = prepare_binary(repo)?;
+    fs::create_dir_all(dest_dir)
+        .with_context(|| format!("create {}", dest_dir.display()))?;
 
     let dest = dest_dir.join(binary_name(&prepared.name));
     install_binary(&prepared.path, &dest)?;
@@ -60,7 +77,7 @@ pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<DownloadSummary> {
 
     Ok(DownloadSummary {
         repo: format!("{}/{}", prepared.owner, prepared.name),
-        tag: prepared.version,
+        tag: prepared.tag,
         url: prepared.asset_url,
         asset_name: prepared.asset_name,
         primary_path: dest,
@@ -87,7 +104,7 @@ fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
         install_payload(extra, &extra_dest)?;
         installed_bins.push(extra_dest);
     }
-    let version = prepared.version.clone();
+    let version = prepared.tag.clone();
     record_install(
         &format!("{}/{}", prepared.owner, prepared.name),
         &version,
@@ -170,7 +187,7 @@ fn parse_repo(repo: &str) -> Result<(String, String)> {
 struct PreparedBinary {
     owner: String,
     name: String,
-    version: String,
+    tag: String,
     asset_name: String,
     asset_url: String,
     path: PathBuf,
@@ -182,28 +199,22 @@ struct PreparedBinary {
 fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
     let (owner, name) = parse_repo(repo)?;
     let client = github_client()?;
-    let release = fetch_latest_release(&client, &owner, &name)?;
-    let asset = pick_asset(&release.assets)?;
-    let version = release
-        .tag_name
-        .as_deref()
-        .unwrap_or("unknown")
-        .to_string();
+    let info = resolve_release_info(&client, &owner, &name)?;
 
     let temp_dir = tempfile::tempdir().context("create temp dir")?;
-    let download_path = temp_dir.path().join(&asset.name);
-    let asset_name = asset.name.clone();
-    let asset_url = asset.browser_download_url.clone();
+    let download_path = temp_dir.path().join(&info.asset_name);
+    let asset_name = info.asset_name.clone();
+    let asset_url = info.asset_url.clone();
     download_asset(&client, &asset_url, &download_path)?;
 
     let mut extracted = None;
-    let (payload_path, extra_paths) = if is_archive_name(&asset.name) {
+    let (payload_path, extra_paths) = if is_archive_name(&asset_name) {
         let extracted_paths = extract_archive(&download_path, &name)?;
         let primary = extracted_paths.primary.clone();
         let extras = extracted_paths.extras.clone();
         extracted = Some(extracted_paths);
         (primary, extras)
-    } else if is_gzip_name(&asset.name) {
+    } else if is_gzip_name(&asset_name) {
         let extracted_paths = extract_gzip(&download_path, &name)?;
         let primary = extracted_paths.primary.clone();
         let extras = extracted_paths.extras.clone();
@@ -216,7 +227,7 @@ fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
     Ok(PreparedBinary {
         owner,
         name,
-        version,
+        tag: info.tag,
         asset_name,
         asset_url,
         path: payload_path,
@@ -259,6 +270,24 @@ fn github_token() -> Option<String> {
     env::var("YOINK_GITHUB_TOKEN")
         .ok()
         .or_else(|| env::var("GITHUB_TOKEN").ok())
+}
+
+fn resolve_release_info(client: &Client, owner: &str, repo: &str) -> Result<ReleaseInfo> {
+    let release = fetch_latest_release(client, owner, repo)?;
+    let asset = pick_asset(&release.assets)?;
+    let tag = release
+        .tag_name
+        .as_deref()
+        .unwrap_or("unknown")
+        .to_string();
+
+    Ok(ReleaseInfo {
+        owner: owner.to_string(),
+        name: repo.to_string(),
+        tag,
+        asset_name: asset.name,
+        asset_url: asset.browser_download_url,
+    })
 }
 
 fn fetch_latest_release(client: &Client, owner: &str, repo: &str) -> Result<Release> {
