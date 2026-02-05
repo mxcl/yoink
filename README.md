@@ -1,4 +1,8 @@
 # Yoink
+<a href="https://coveralls.io/github/mxcl/yoink?branch=main">
+  <img alt="Coverage Status"
+       src="https://coveralls.io/repos/github/mxcl/yoink/badge.svg?branch=main">
+</a>
 
 ## Downloading Standalone Binaries
 
