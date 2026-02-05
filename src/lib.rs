@@ -29,13 +29,22 @@ pub fn install(repo: &str) -> Result<PathBuf> {
     Ok(dest)
 }
 
-pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<Vec<PathBuf>> {
+#[derive(Debug)]
+pub struct DownloadSummary {
+    pub repo: String,
+    pub version: String,
+    pub url: String,
+    pub asset_name: String,
+    pub primary_path: PathBuf,
+    pub paths: Vec<PathBuf>,
+}
+
+pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<DownloadSummary> {
     let prepared = prepare_binary(repo)?;
-    let mut downloaded = Vec::new();
 
     let dest = dest_dir.join(binary_name(&prepared.name));
     install_binary(&prepared.path, &dest)?;
-    downloaded.push(dest);
+    let mut downloaded = vec![dest.clone()];
 
     for extra in &prepared.extra_paths {
         let Some(name) = extra.file_name() else {
@@ -49,7 +58,14 @@ pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<Vec<PathBuf>> {
         downloaded.push(extra_dest);
     }
 
-    Ok(downloaded)
+    Ok(DownloadSummary {
+        repo: format!("{}/{}", prepared.owner, prepared.name),
+        version: prepared.version,
+        url: prepared.asset_url,
+        asset_name: prepared.asset_name,
+        primary_path: dest,
+        paths: downloaded,
+    })
 }
 
 fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
@@ -155,6 +171,8 @@ struct PreparedBinary {
     owner: String,
     name: String,
     version: String,
+    asset_name: String,
+    asset_url: String,
     path: PathBuf,
     extra_paths: Vec<PathBuf>,
     _download_dir: TempDir,
@@ -174,7 +192,9 @@ fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
 
     let temp_dir = tempfile::tempdir().context("create temp dir")?;
     let download_path = temp_dir.path().join(&asset.name);
-    download_asset(&client, &asset.browser_download_url, &download_path)?;
+    let asset_name = asset.name.clone();
+    let asset_url = asset.browser_download_url.clone();
+    download_asset(&client, &asset_url, &download_path)?;
 
     let mut extracted = None;
     let (payload_path, extra_paths) = if is_archive_name(&asset.name) {
@@ -197,6 +217,8 @@ fn prepare_binary(repo: &str) -> Result<PreparedBinary> {
         owner,
         name,
         version,
+        asset_name,
+        asset_url,
         path: payload_path,
         extra_paths,
         _download_dir: temp_dir,

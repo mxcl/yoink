@@ -7,6 +7,9 @@ $ sh <(curl https://yoink.sh) mxcl/brewx
 /path/to/brewx
 ```
 
+By default, stdout prints the downloaded path(s). Stderr also prints
+`downloaded: /path/to/brewx` for each binary.
+
 This downloads [`brewx`](https://github.com/mxcl/brewx) into the current
 directory but it doesn’t install `yoink` itself:
 
@@ -21,6 +24,20 @@ If you want `yoink` in your PATH, download it and move it yourself:
 $ sh <(curl https://yoink.sh) mxcl/yoink
 /path/to/yoink
 $ mv yoink ~/.local/bin/
+```
+
+Set `JSON=1` to get machine readable output on stdout:
+
+```sh
+$ JSON=1 sh <(curl https://yoink.sh) mxcl/brewx
+{
+  "repo": "mxcl/brewx",
+  "version": "v0.4.2",
+  "url": "...",
+  "asset": "...",
+  "path": "...",
+  "paths": ["..."]
+}
 ```
 
 Alternatively, you can just run things:

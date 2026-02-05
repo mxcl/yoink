@@ -1,5 +1,16 @@
+use serde::Serialize;
 use std::env;
 use std::process::ExitCode;
+
+#[derive(Serialize)]
+struct DownloadJson {
+    repo: String,
+    version: String,
+    url: String,
+    asset: String,
+    path: String,
+    paths: Vec<String>,
+}
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
@@ -32,10 +43,36 @@ fn main() -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
+            let json_output = env::var("JSON").ok().as_deref() == Some("1");
             match yoink::download_to_dir(&first, &cwd) {
-                Ok(paths) => {
-                    for path in paths {
-                        println!("{}", path.display());
+                Ok(summary) => {
+                    for path in &summary.paths {
+                        eprintln!("downloaded: {}", path.display());
+                    }
+                    if json_output {
+                        let payload = DownloadJson {
+                            repo: summary.repo,
+                            version: summary.version,
+                            url: summary.url,
+                            asset: summary.asset_name,
+                            path: summary.primary_path.display().to_string(),
+                            paths: summary
+                                .paths
+                                .iter()
+                                .map(|path| path.display().to_string())
+                                .collect(),
+                        };
+                        match serde_json::to_string(&payload) {
+                            Ok(json) => println!("{json}"),
+                            Err(err) => {
+                                eprintln!("yoink: {err:?}");
+                                return ExitCode::from(1);
+                            }
+                        }
+                    } else {
+                        for path in &summary.paths {
+                            println!("{}", path.display());
+                        }
                     }
                     ExitCode::SUCCESS
                 }
