@@ -64,8 +64,12 @@ gh version 2.86.0
 ```
 
 ```sh
-$ sh <(curl https://yoink.sh) -C $(mktemp -d) mxcl/brewx | xargs sudo install -m 755 -D /usr/local/bin
-# ^^ invokes sudo but only when atomically moving the binary into place
+$ sh <(curl https://yoink.sh) -C $(mktemp -d) astral-sh/uv | xargs sudo install -m 755 -D /usr/local/bin
+
+$ ls /usr/local/bin/uv*
+/usr/local/bin/uv
+/usr/local/bin/uvx
+# ^^ installed both executables from the release asset
 ```
 
 ```sh
@@ -97,6 +101,30 @@ Rust supports.
   use it. Which is especially nice for READMEs.
 - If you pass args after `owner/repo`, yoink runs the binary without
   saving it.
+
+## Vibecoding a Package Manager on Top of Yoink
+
+Do a combination of this:
+
+```sh
+$ sh <(curl https://yoink.sh) -C $(mktemp -d) astral-sh/uv | xargs sudo install -m 755 -D /usr/local/bin
+```
+
+And “headers only” checks to do outdated.
+
+```sh
+$ sh <(curl https://yoink.sh) -jI astral-sh/uv
+{
+  "repo": "astral-sh/uv",
+  "tag": "v0.4.0",
+}
+```
+
+Then vibe code a script to check the installed `uv --version` against the
+latest version that yoink can give you.
+
+> I did this: https://github.com/mxcl/bootstrap
+
 
 ## Something Didn’t Work
 
