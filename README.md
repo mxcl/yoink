@@ -1,6 +1,6 @@
 # Yoink
 
-Download standalone binaries from GitHub releases:
+## Downloading Standalone Binaries
 
 ```sh
 $ sh <(curl https://yoink.sh) mxcl/brewx
@@ -10,26 +10,17 @@ $ ./brewx --version
 brewx 0.4.2
 ```
 
-`yoink` is *not installed*. But if you want you can yoink `yoink`:
+> [!TIP]
+>
+> `yoink` is *not installed* but if you like you can yoink it:
+>
+> ```sh
+> $ sh <(curl https://yoink.sh) -C ~/.local/bin mxcl/yoink
+> ```
 
-```sh
-$ mv "$(sh <(curl https://yoink.sh) mxcl/yoink)" ~/.local/bin
-```
+## Executing Standalone Binaries
 
-Set `JSON=1` to get machine readable output on stdout:
-
-```sh
-$ JSON=1 sh <(curl https://yoink.sh) mxcl/brewx
-{
-  "repo": "mxcl/brewx",
-  "tag": "v0.4.2",
-  "url": "https://github.com/mxcl/brewx/releases/download/v0.4.2/brewx-macos-arm64.tar.gz",
-  "asset": "brewx-macos-arm64.tar.gz",
-  "paths": ["/cwd/brewx"]
-}
-```
-
-Keeping binaries around can be tedious:
+Often you don’t want to keep the thing even.
 
 ```sh
 $ sh <(curl https://yoink.sh) denoland/deno eval 'console.log("hi")'
@@ -56,6 +47,39 @@ ls: ./deno: No such file or directory
 >                 ||----w |
 >                 ||     ||
 > ```
+
+## Other Stuff
+
+```sh
+$ sh <(curl https://yoink.sh) -j mxcl/brewx
+{
+  "repo": "mxcl/brewx",
+  "tag": "v0.4.2",
+  "url": "https://github.com/mxcl/brewx/releases/download/v0.4.2/brewx-macos-arm64.tar.gz",
+  "asset": "brewx-macos-arm64.tar.gz",
+  "paths": ["/cwd/brewx"]
+}
+```
+
+```sh
+$ sh <(curl https://yoink.sh) -C $(mktemp -d) mxcl/brewx | xargs sudo install -m 755 -D /usr/local/bin
+# ^^ invokes sudo but only when atomically moving the binary into place
+```
+
+```sh
+# “headers only” useful for doing an “outdated” check
+$ sh <(curl https://yoink.sh) -jI direnv/direnv
+{
+  "repo": "direnv/direnv",
+  "tag": "v0.4.2",
+  …
+}
+
+$ ls ./brewx
+ls: ./brewx: No such file or directory
+```
+
+
 
 ## Why This and Not All the Other Tools That Seem Identical?
 
