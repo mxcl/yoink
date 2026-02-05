@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-reqwest = { version = "0.11", features = ["blocking", "json", "rustls-tls"] }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls-native-roots"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
@@ -17,9 +17,6 @@ walkdir = "2"
 bzip2 = "0.4"
 dirs-next = "2"
 fs2 = "0.4"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [dev-dependencies]
 serial_test = "3"
