@@ -68,11 +68,7 @@ fn assert_executable(path: &Path) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = path
-            .metadata()
-            .expect("stat binary")
-            .permissions()
-            .mode();
+        let mode = path.metadata().expect("stat binary").permissions().mode();
         assert!(mode & 0o111 != 0, "{} not executable", path.display());
     }
 }
