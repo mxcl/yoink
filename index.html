@@ -54,6 +54,10 @@
         pointer-events: none;
       }
 
+      body.chrome-lite::before {
+        display: none;
+      }
+
       #riot {
         position: fixed;
         inset: 0;
@@ -69,6 +73,10 @@
           0 0 18px rgba(255, 255, 255, 0.4),
           -4px 4px 0 #000;
         animation: spin var(--spin) linear infinite;
+      }
+
+      body.chrome-lite .yoink {
+        text-shadow: -3px 3px 0 #000;
       }
 
       #hero {
@@ -92,6 +100,11 @@
         inset: 0;
         mix-blend-mode: difference;
         opacity: 0.7;
+      }
+
+      body.chrome-lite #hero::before,
+      body.chrome-lite #hero::after {
+        display: none;
       }
 
       #hero::before {
@@ -277,7 +290,16 @@ YOINK</code></pre>
     <script>
       const riot = document.getElementById("riot");
       const colors = ["#ff2fd0", "#00f0ff", "#a8ff00", "#ff6b00", "#ffffff"];
-      const count = 12;
+      const isChrome =
+        /Chrome/.test(navigator.userAgent) &&
+        !/Edg|OPR|Brave/.test(navigator.userAgent);
+      const count = isChrome ? 8 : 12;
+      const spinMin = isChrome ? 24 : 18;
+      const spinRange = isChrome ? 24 : 18;
+
+      if (isChrome) {
+        document.body.classList.add("chrome-lite");
+      }
 
       for (let i = 0; i < count; i += 1) {
         const yoink = document.createElement("div");
@@ -287,7 +309,10 @@ YOINK</code></pre>
         yoink.style.top = `${Math.random() * 100}vh`;
         yoink.style.fontSize = `${90 + Math.random() * 140}px`;
         yoink.style.opacity = `${0.25 + Math.random() * 0.5}`;
-        yoink.style.setProperty("--spin", `${18 + Math.random() * 18}s`);
+        yoink.style.setProperty(
+          "--spin",
+          `${spinMin + Math.random() * spinRange}s`
+        );
         yoink.style.color = colors[i % colors.length];
         riot.appendChild(yoink);
       }
