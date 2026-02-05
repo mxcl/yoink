@@ -240,6 +240,43 @@ fi
 
 cloudfront_function_name="yoink-sh-root"
 cloudfront_function_file="$(mktemp -t yoink-sh-function.XXXXXX.js)"
+site_bucket="${YOINK_SITE_BUCKET:-yoink-sh-site}"
+site_region="${YOINK_SITE_REGION:-$(aws configure get region || true)}"
+
+if [ -z "$site_region" ]; then
+  site_region="us-east-1"
+fi
+
+if ! aws s3api head-bucket --bucket "$site_bucket" >/dev/null 2>&1; then
+  if [ "$site_region" = "us-east-1" ]; then
+    aws s3api create-bucket --bucket "$site_bucket" --region "$site_region"
+  else
+    aws s3api create-bucket \
+      --bucket "$site_bucket" \
+      --region "$site_region" \
+      --create-bucket-configuration "LocationConstraint=$site_region"
+  fi
+fi
+
+if [ ! -f "$PWD/index.html" ]; then
+  echo "error: index.html not found (site sync)" >&2
+  exit 1
+fi
+
+if [ ! -f "$PWD/preview.webp" ]; then
+  echo "error: preview.webp not found (site sync)" >&2
+  exit 1
+fi
+
+aws s3 sync \
+  --only-show-errors \
+  --delete \
+  --cache-control "public, max-age=300" \
+  --exclude "*" \
+  --include "index.html" \
+  --include "preview.webp" \
+  "$PWD/" "s3://$site_bucket/"
+
 llms_body_lines="$(
   python - <<'PY'
 import json
@@ -261,7 +298,10 @@ function handler(event) {
   var userAgentHeader = headers['user-agent'];
   var userAgent = userAgentHeader ? userAgentHeader.value.toLowerCase() : '';
   var isCli = userAgent.indexOf('curl') !== -1 || userAgent.indexOf('wget') !== -1;
-  var isRootGet = request.method === 'GET' && request.uri === '/';
+  var isIndexGet = request.method === 'GET' &&
+    (request.uri === '/' || request.uri === '/index.html');
+  var isPreviewGet = request.method === 'GET' &&
+    request.uri === '/preview.webp';
   var isLlmsGet = request.method === 'GET' && request.uri === '/llms.txt';
 
   if (isLlmsGet) {
@@ -285,7 +325,7 @@ cat <<'EOF' >>"$cloudfront_function_file"
     };
   }
 
-  if (isRootGet && isCli) {
+  if (request.method === 'GET' && request.uri === '/' && isCli) {
     var body = [
       "tmp=$(mktemp -d)",
       "trap 'rm -rf \"$tmp\"' EXIT",
@@ -304,6 +344,15 @@ cat <<'EOF' >>"$cloudfront_function_file"
       body: body,
       bodyEncoding: 'text'
     };
+  }
+
+  if (isIndexGet) {
+    request.uri = '/index.html';
+    return request;
+  }
+
+  if (isPreviewGet) {
+    return request;
   }
 
   return {
