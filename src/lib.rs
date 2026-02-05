@@ -888,7 +888,9 @@ fn remove_install(repo: &str) -> Result<()> {
         .with_context(|| format!("{} not installed", repo))?;
 
     for bin in entry.all_bins() {
-        let result = if bin.is_dir() {
+        let result = if bin.is_symlink() {
+            fs::remove_file(bin)
+        } else if bin.is_dir() {
             fs::remove_dir_all(bin)
         } else {
             fs::remove_file(bin)
