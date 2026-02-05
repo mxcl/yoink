@@ -233,8 +233,7 @@ if [ "$clobber" = false ]; then
     v$v_new \
     --verify-tag \
     --latest \
-    --draft=false \
-    --discussion-category=Announcements
+    --draft=false
 fi
 
 cloudfront_function_name="yoink-sh-root"
