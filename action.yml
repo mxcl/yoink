@@ -1,0 +1,172 @@
+name: yoink
+description: Download and run GitHub release binaries with yoink.
+author: mxcl
+inputs:
+  repo:
+    description: >
+      Owner/repo to download, eg: cli/cli.
+    required: true
+  args:
+    description: >
+      Newline-separated args passed to the downloaded binary.
+    required: false
+    default: ""
+  download-dir:
+    description: >
+      Directory to download into (default: workspace root).
+    required: false
+    default: ""
+  info-only:
+    description: >
+      If true, only fetch release info (no download).
+    required: false
+    default: "false"
+  version:
+    description: >
+      yoink version to use (default: latest).
+    required: false
+    default: ""
+outputs:
+  repo:
+    description: >
+      Owner/repo resolved by yoink.
+  tag:
+    description: >
+      Release tag used by yoink.
+  url:
+    description: >
+      Asset URL selected by yoink.
+  executables:
+    description: >
+      JSON array of executable names (download mode).
+  download_dir:
+    description: >
+      Absolute download directory (download mode).
+  yoink_version:
+    description: >
+      yoink version used by the action.
+runs:
+  using: composite
+  steps:
+    - name: Run yoink
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        repo="${{ inputs.repo }}"
+        args="${{ inputs.args }}"
+        download_dir="${{ inputs.download-dir }}"
+        info_only="${{ inputs.info-only }}"
+        version="${{ inputs.version }}"
+
+        if [[ -z "$version" ]]; then
+          latest_url="$(
+            curl -fsSL -o /dev/null -w '%{url_effective}' \
+              https://github.com/mxcl/yoink/releases/latest
+          )"
+          version="${latest_url##*/}"
+          version="${version#v}"
+        else
+          version="${version#v}"
+        fi
+
+        uname_s="$(uname -s)"
+        uname_m="$(uname -m)"
+
+        case "$uname_s" in
+          Linux|Darwin)
+            ;;
+          *)
+            echo "yoink: unsupported runner OS: $uname_s" >&2
+            exit 1
+            ;;
+        esac
+
+        case "$uname_m" in
+          x86_64|arm64|aarch64)
+            ;;
+          *)
+            echo "yoink: unsupported runner arch: $uname_m" >&2
+            exit 1
+            ;;
+        esac
+
+        artifact="yoink-${version}-${uname_s}-${uname_m}.tar.gz"
+        url="https://github.com/mxcl/yoink/releases/download/\
+v${version}/${artifact}"
+
+        tmp="$(mktemp -d)"
+        cleanup() { rm -rf "$tmp"; }
+        trap cleanup EXIT
+
+        curl -fsSL "$url" | tar -xz -C "$tmp"
+
+        yoink_bin="$tmp/yoink"
+        if [[ ! -x "$yoink_bin" ]]; then
+          echo "yoink: downloaded binary is not executable" >&2
+          exit 1
+        fi
+
+        cwd="$(pwd -P)"
+        if [[ -n "$download_dir" ]]; then
+          if [[ "$download_dir" = /* ]]; then
+            resolved_download_dir="$download_dir"
+          else
+            resolved_download_dir="${cwd}/${download_dir}"
+          fi
+        else
+          resolved_download_dir="$cwd"
+        fi
+
+        info_only_lc="$(printf '%s' "$info_only" \
+          | tr '[:upper:]' '[:lower:]')"
+
+        if [[ -n "$args" ]]; then
+          run_args=()
+          while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+              run_args+=("$line")
+            fi
+          done <<<"$args"
+          "$yoink_bin" "$repo" "${run_args[@]}"
+          exit 0
+        fi
+
+        if [[ "$info_only_lc" = "true" || "$info_only_lc" = "1" \
+          || "$info_only_lc" = "yes" ]]; then
+          json="$("$yoink_bin" -I "$repo")"
+        else
+          json="$("$yoink_bin" -j -C "$resolved_download_dir" \
+            "$repo")"
+        fi
+
+        json_file="$tmp/yoink.json"
+        printf '%s\n' "$json" > "$json_file"
+
+        python - "$GITHUB_OUTPUT" "$resolved_download_dir" \
+          "$version" "$json_file" <<'PY'
+        import json
+        import sys
+
+        output_path = sys.argv[1]
+        download_dir = sys.argv[2]
+        yoink_version = sys.argv[3]
+        json_path = sys.argv[4]
+
+        with open(json_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+
+        def set_output(key, value):
+            with open(output_path, "a", encoding="utf-8") as handle:
+                handle.write(f"{key}={value}\n")
+
+        set_output("repo", data.get("repo", ""))
+        set_output("tag", data.get("tag", ""))
+        set_output("url", data.get("url", ""))
+        set_output("yoink_version", yoink_version)
+
+        executables = data.get("executables")
+        if executables is not None:
+            set_output("executables", json.dumps(executables))
+            set_output("download_dir", download_dir)
+        PY

@@ -22,6 +22,49 @@ brewx 0.4.2
 > $ sh <(curl https://yoink.sh) -C ~/.local/bin mxcl/yoink
 > ```
 
+## GitHub Actions
+
+Use yoink as a composite action (Linux and macOS runners).
+
+```yaml
+- uses: mxcl/yoink@v0.4.0
+  id: yoink
+  with:
+    repo: cli/cli
+
+- name: Show version
+  env:
+    YOINK_DIR: ${{ steps.yoink.outputs.download_dir }}
+    YOINK_EXE: >-
+      ${{ fromJSON(steps.yoink.outputs.executables)[0] }}
+  run: |
+    "${YOINK_DIR}/${YOINK_EXE}" --version
+```
+
+To run a downloaded binary directly:
+
+```yaml
+- uses: mxcl/yoink@v0.4.0
+  with:
+    repo: denoland/deno
+    args: |
+      eval
+      console.log("hi from yoink action")
+```
+
+Outputs (download mode):
+
+- `repo`
+- `tag`
+- `url`
+- `executables` (JSON array)
+- `download_dir`
+- `yoink_version`
+
+If `args` is set, the action runs the downloaded binary and skips the
+download outputs. `args` is newline-separated; each line becomes one
+argument.
+
 ## Executing Standalone Binaries
 
 Often you don’t want to keep the thing even.
