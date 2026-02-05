@@ -59,7 +59,10 @@ pub fn download_to_dir(repo: &str, dest_dir: &Path) -> Result<DownloadSummary> {
     fs::create_dir_all(dest_dir)
         .with_context(|| format!("create {}", dest_dir.display()))?;
 
-    let dest = dest_dir.join(binary_name(&prepared.name));
+    let Some(name) = prepared.path.file_name() else {
+        bail!("downloaded binary has no filename");
+    };
+    let dest = dest_dir.join(name);
     install_binary(&prepared.path, &dest)?;
     let mut downloaded = vec![dest.clone()];
 
@@ -90,7 +93,10 @@ fn install_with_version(repo: &str) -> Result<(PathBuf, String)> {
     let install_dir = default_install_dir()?;
     ensure_install_dir(&install_dir)?;
 
-    let dest = install_dir.join(binary_name(&prepared.name));
+    let Some(name) = prepared.path.file_name() else {
+        bail!("downloaded binary has no filename");
+    };
+    let dest = install_dir.join(name);
     install_payload(&prepared.path, &dest)?;
     let mut installed_bins = vec![dest.clone()];
     for extra in &prepared.extra_paths {
