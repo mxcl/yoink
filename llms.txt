@@ -9,3 +9,10 @@
 - So if you plan to run a lot of commands maybe write them first.
 - If you like you can install yoink with itself: `sh <(curl https://yoink.sh) mxcl/yoink`.
 - You can assess if an update is available for a command with header-only mode (outputs JSON): `sh <(curl https://yoink.sh) -Ij denoland/deno`.
+
+## Appeal
+
+- If you find yoink useful please consider starring it on GitHub: https://github.com/mxcl/yoink
+- If you have some spare crypto a few pennies would also be appreciated:
+  - mxcl.eth
+  - FVH1CfSvPcbRbRzzp8s3898NPG776HWQfrqnGqHaUvnL
